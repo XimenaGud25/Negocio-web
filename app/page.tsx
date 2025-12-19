@@ -2,64 +2,280 @@ import Image from "next/image";
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main className="text-gray-900">
+
+      {/* ================= HEADER ================= */}
+      <header className="fixed top-0 w-full bg-white shadow-md z-50">
+        <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
+          
+          {/* Logo + nombre */}
+          <div className="flex items-center gap-3">
+            <Image
+              src="/logo.png"
+              alt="Fitness Para La Vida"
+              width={50}
+              height={50}
+              priority
+            />
+            <span className="font-extrabold text-lg tracking-wide">
+              FITNESS PARA LA VIDA
+            </span>
+          </div>
+
+          {/* Menú */}
+          <nav className="flex gap-6 font-medium">
+            <a href="#servicios" className="hover:text-yellow-400 transition">
+              Servicios
+            </a>
+            <a href="#planes" className="hover:text-yellow-400 transition">
+              Planes
+            </a>
+            <a
+              href="/login"
+              className="text-yellow-500 font-bold hover:text-yellow-600 transition"
+            >
+              Iniciar sesión
+            </a>
+          </nav>
+        </div>
+      </header>
+
+      {/* ================= HERO ================= */}
+      <section className="bg-black text-white pt-36 pb-28">
+        <div className="max-w-7xl mx-auto px-6 text-center">
+          <h1 className="text-4xl md:text-6xl font-extrabold text-yellow-400 mb-6">
+            FITNESS PARA LA VIDA
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
+
+          <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto mb-10">
+            Transformamos tu cuerpo y tu mente con entrenamiento profesional,
+            asesoría nutricional y planes diseñados para resultados reales.
+          </p>
+
+          <div className="flex justify-center gap-6">
             <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              href="#servicios"
+              className="bg-yellow-400 text-black px-8 py-3 rounded-xl font-bold hover:bg-yellow-500 transition"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
+              Ver servicios
+            </a>
+
             <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              href="#planes"
+              className="border border-yellow-400 text-yellow-400 px-8 py-3 rounded-xl font-bold hover:bg-yellow-400 hover:text-black transition"
             >
-              Learning
-            </a>{" "}
-            center.
+              Ver planes
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* ================= SERVICIOS ================= */}
+<section id="servicios" className="py-24 bg-gray-50">
+  <div className="max-w-7xl mx-auto px-6">
+    <h2 className="text-4xl font-bold text-center mb-16">
+      Nuestros <span className="text-yellow-400">Servicios</span>
+    </h2>
+
+    <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-10">
+      {[
+        {
+          title: "Asesoría nutricional",
+          img: "/servicios/asesoria.jpg",
+        },
+        {
+          title: "Entrenamiento personalizado",
+          img: "/servicios/personalizado.jpg",
+        },
+        {
+          title: "Entrenamiento deportivo",
+          img: "/servicios/deportivo.jpg",
+        },
+        {
+          title: "Preparador físico",
+          img: "/servicios/preparador.jpg",
+        },
+        {
+          title: "Entrenamiento en línea",
+          img: "/servicios/online.jpg",
+        },
+      ].map((service, index) => (
+        <div
+          key={index}
+          className="bg-white rounded-2xl shadow hover:shadow-xl transition overflow-hidden group"
+        >
+          {/* Imagen */}
+          <div className="relative w-full h-56">
+            <Image
+              src={service.img}
+              alt={service.title}
+              fill
+              className="object-cover group-hover:scale-105 transition duration-300"
+            />
+          </div>
+
+          {/* Título */}
+          <div className="p-6 text-center">
+            <h3 className="text-lg font-bold text-yellow-500">
+              {service.title}
+            </h3>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+
+      {/* ================= PLANES FULL SCREEN ================= */}
+<section id="planes">
+  {[
+   {
+  name: "RETO FITNESS 2da EDICIÓN",
+  duration: "12 semanas",
+  price: "$1,700",
+  image: "/planes/avanzado.jpg",
+  isReto: true,
+  features: [
+    "Plan de alimentación (revisiones cada 2 semanas)",
+    "Plan de entrenamiento",
+    "Entrenamiento personalizado grupal 1 vez a la semana",
+    "Clases de hipopresivos grupal cada 2 semanas",
+    "Playera con edición especial del #RETOFITNESSPARALAVIDA",
+  ],
+},
+    {
+      name: "Despegue Saludable",
+      duration: "3 o 6 semanas",
+      price: "$450",
+      image: "/planes/basico.jpg",
+      features: [
+        "Plan de entrenamiento o plan de alimentación (a elegir)",
+        "Informe de composición corporal",
+        "Guía de suplementación",
+      ],
+    },
+    {
+      name: "Transformación acelerada",
+      duration: "6 semanas",
+      price: "$1,000",
+      image: "/planes/intermedio.jpg",
+      features: [
+        "Plan de alimentación",
+        "Plan de entrenamiento",
+        "Valoración corporal",
+        "Guía de suplementación",
+        "2 informes de composición corporal",
+        "Revisión a las 3 semenas para ajustar planes",
+        "Masaje de descarga muscular con @hzfisioteo",
+      ],
+    },
+    {
+      name: "Fitness para la vida",
+      duration: "12 semanas",
+      price: "$2,400",
+      image: "/planes/pro.jpg",
+      features: [
+        "3 consultas nutricionales",
+        "2 planes de entrenamiento",
+        "6 informes de composición corporal",
+        "3 revisiones para ajustar planes",
+        "Masaje de descarga muscular + 1 clase de hipopresivos con @hzfisioteo",
+        "Botas de presoterapia + 1 clase de hipopresivos con @hzfisioteo",
+        "2 valoraciones posturales con @hzfisioteo",
+      ],
+    },
+    {
+      name: "Transformación integral",
+      duration: "9 semanas",
+      price: "$1,650",
+      image: "/planes/elite.jpg",
+      features: [
+        "2 planes de alimentación",
+        "Plan de entrenamiento",
+        "Valoración corporal",
+        "Guía de suplementación",
+        "3 informes de composición corporal",
+        "Revisión a las 3 semenas para ajustar planes",
+        "Masaje de descarga muscular con @hzfisioteo",
+        "50% de descuento en tu segundo masaje con @hzfisioteo",
+      ],
+    },
+  ].map((plan, index) => (
+    <div
+      key={index}
+      className={`min-h-screen flex items-center ${
+        index % 2 === 0 ? "bg-black text-white" : "bg-gray-100 text-black"
+      }`}
+    >
+      <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-16 items-center">
+        
+        {/* Texto */}
+        <div>
+          <h3 className="text-5xl font-extrabold text-yellow-400 mb-4">
+            {plan.name}
+          </h3>
+
+          <p className="text-lg mb-2 opacity-80">
+            Duración: {plan.duration}
+          </p>
+
+          <p className="text-4xl font-bold text-yellow-500 mb-8">
+            {plan.price}
+          </p>
+
+          <ul className="space-y-4 mb-10">
+            {plan.features.map((feature, i) => (
+              <li key={i} className="text-lg">
+                ✔ {feature}
+              </li>
+            ))}
+          </ul>
+
+         <div className="flex flex-wrap gap-4">
+  <a
+    href="/login"
+    className="inline-block bg-yellow-400 text-black px-8 py-4 rounded-xl font-bold hover:bg-yellow-500 transition"
+  >
+    Quiero este plan
+  </a>
+
+  {plan.isReto && (
+    <a
+      href="/reto-fitness"
+      className="inline-block border border-yellow-400 text-yellow-400 px-8 py-4 rounded-xl font-bold hover:bg-yellow-400 hover:text-black transition"
+    >
+      Más información
+    </a>
+  )}
+</div>
+
+        </div>
+
+        {/* Imagen / Flyer */}
+        <div className="relative w-full h-[400px] md:h-[500px] rounded-2xl overflow-hidden shadow-lg">
+          <Image
+            src={plan.image}
+            alt={plan.name}
+            fill
+            className="object-cover"
+          />
+        </div>
+      </div>
+    </div>
+  ))}
+</section>
+
+
+      {/* ================= FOOTER ================= */}
+      <footer className="bg-black text-gray-400 py-10">
+        <div className="max-w-7xl mx-auto px-6 text-center">
+          <p>
+            © {new Date().getFullYear()} Fitness Para La Vida. Todos los derechos
+            reservados.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </footer>
+    </main>
   );
 }
