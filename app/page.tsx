@@ -286,10 +286,6 @@ export default function Home() {
       {/* ================= FOOTER ================= */}
       <footer className="bg-black text-gray-400 py-10">
         <div className="max-w-7xl mx-auto px-6 text-center">
-          <p>
-            © {new Date().getFullYear()} Fitness Para La Vida. Todos los derechos
-            reservados.
-          </p>
         </div>
       </footer>
     </main>
