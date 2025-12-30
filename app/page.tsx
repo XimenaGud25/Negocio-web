@@ -134,8 +134,9 @@ export default function Home() {
   name: "RETO FITNESS 2da EDICIÓN",
   duration: "12 semanas",
   price: "$1,700",
-  image: "/planes/avanzado.jpg",
+  image: "/planes/reto.jpg",
   isReto: true,
+  bg: "dark",
   features: [
     "Plan de alimentación (revisiones cada 2 semanas)",
     "Plan de entrenamiento",
@@ -148,7 +149,8 @@ export default function Home() {
       name: "Despegue Saludable",
       duration: "3 o 6 semanas",
       price: "$450",
-      image: "/planes/basico.jpg",
+      image: "/planes/despegue.jpg",
+      bg: "light",
       features: [
         "Plan de entrenamiento o plan de alimentación (a elegir)",
         "Informe de composición corporal",
@@ -159,7 +161,8 @@ export default function Home() {
       name: "Transformación acelerada",
       duration: "6 semanas",
       price: "$1,000",
-      image: "/planes/intermedio.jpg",
+      image: "/planes/acelerada.jpg",
+      bg: "dark",
       features: [
         "Plan de alimentación",
         "Plan de entrenamiento",
@@ -174,7 +177,8 @@ export default function Home() {
       name: "Fitness para la vida",
       duration: "12 semanas",
       price: "$2,400",
-      image: "/planes/pro.jpg",
+      image: "/planes/12sem.jpg",
+      bg: "light",
       features: [
         "3 consultas nutricionales",
         "2 planes de entrenamiento",
@@ -189,7 +193,8 @@ export default function Home() {
       name: "Transformación integral",
       duration: "9 semanas",
       price: "$1,650",
-      image: "/planes/elite.jpg",
+      image: "/planes/transformacionin.jpg",
+      bg: "dark",
       features: [
         "2 planes de alimentación",
         "Plan de entrenamiento",
@@ -208,7 +213,8 @@ export default function Home() {
         index % 2 === 0 ? "bg-black text-white" : "bg-gray-100 text-black"
       }`}
     >
-      <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-16 items-center">
+      <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 items-center">
+
         
         {/* Texto */}
         <div>
@@ -233,12 +239,18 @@ export default function Home() {
           </ul>
 
          <div className="flex flex-wrap gap-4">
-  <a
-    href="/login"
-    className="inline-block bg-yellow-400 text-black px-8 py-4 rounded-xl font-bold hover:bg-yellow-500 transition"
-  >
-    Quiero este plan
-  </a>
+ <a
+  href={`https://wa.me/524461252310?text=${encodeURIComponent(
+    `Hola me interesa el plan "${plan.name}" (${plan.duration}). ¿Me das más información por favor?`
+  )}`}
+  target="_blank"
+  rel="noopener noreferrer"
+  className="inline-block bg-yellow-400 text-black px-8 py-4 rounded-xl font-bold hover:bg-yellow-500 transition"
+>
+  Quiero este plan
+</a>
+
+
 
   {plan.isReto && (
     <a
@@ -253,14 +265,18 @@ export default function Home() {
         </div>
 
         {/* Imagen / Flyer */}
-        <div className="relative w-full h-[400px] md:h-[500px] rounded-2xl overflow-hidden shadow-lg">
-          <Image
-            src={plan.image}
-            alt={plan.name}
-            fill
-            className="object-cover"
-          />
-        </div>
+        <div
+          className="relative w-full h-72 sm:h-96 md:h-[520px] flex items-center justify-center">
+        <Image
+         src={plan.image}
+          alt={plan.name}
+          fill
+          className="object-contain"
+        priority={index === 0}
+  />
+</div>
+
+
       </div>
     </div>
   ))}
@@ -270,10 +286,6 @@ export default function Home() {
       {/* ================= FOOTER ================= */}
       <footer className="bg-black text-gray-400 py-10">
         <div className="max-w-7xl mx-auto px-6 text-center">
-          <p>
-            © {new Date().getFullYear()} Fitness Para La Vida. Todos los derechos
-            reservados.
-          </p>
         </div>
       </footer>
     </main>
