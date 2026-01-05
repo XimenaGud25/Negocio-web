@@ -29,8 +29,8 @@ enum MediaType {
 }
 
 enum DocumentType {
-  DIET_PDF        // PDF de dieta
-  ROUTINE_PDF     // PDF de rutina
+  DIET        // PDF de dieta
+  ROUTINE     // PDF de rutina
 }
 
 // USER & AUTHENTICATION
@@ -39,7 +39,8 @@ model User {
   id        String   @id @default(cuid())
   email     String   @unique
   username  String   @unique
-  password  String   // Hashed with bcrypt
+  passwordHash  String   // Hashed with bcrypt
+  phone     String?  // Teléfono (opcional)
   name      String
   role      Role     @default(USER)
   
@@ -61,7 +62,7 @@ model Plan {
   id          String   @id @default(cuid())
   name        String   // "RETO FITNESS 2da EDICIÓN", "Plan Básico", etc.
   description String   @db.Text
-  duration    Int      // Duración en días (ej: 84 para 12 semanas)
+  durationDays    Int      // Duración en días (ej: 84 para 12 semanas)
   price       Decimal  @db.Decimal(10, 2)
   features    String[] // Array de características incluidas
   isActive    Boolean  @default(true) // Para mostrar/ocultar en público
@@ -124,7 +125,7 @@ model Progress {
   measurements Json?    // Medidas: pecho, cintura, cadera, brazos, etc.
   notes        String?  @db.Text
   
-  recordedAt   DateTime @default(now())
+  recordDate   DateTime @default(now())
   createdAt    DateTime @default(now())
   
   // Relations
@@ -142,8 +143,8 @@ model Media {
   enrollmentId String
   
   type         MediaType
-  fileName     String    // Nombre del archivo
-  filePath     String    // Ruta relativa o URL
+  filename     String    // Nombre del archivo
+  url          String    // Ruta relativa o URL
   fileSize     Int?      // Tamaño en bytes
   mimeType     String?   // image/jpeg, video/mp4, etc.
   
@@ -163,8 +164,8 @@ model Document {
   enrollmentId String
   
   type         DocumentType
-  fileName     String       // Nombre del archivo
-  filePath     String       // Ruta relativa o URL
+  filename     String       // Nombre del archivo
+  url          String       // Ruta relativa o URL
   fileSize     Int?         // Tamaño en bytes
   description  String?      @db.Text
   
@@ -183,7 +184,7 @@ model Document {
 model TrainerComment {
   id           String   @id @default(cuid())
   enrollmentId String
-  userId       String   // El admin que escribió el comentario
+  userId       String?   // El admin que escribió el comentario (opcional)
   
   comment      String   @db.Text
   isVisible    Boolean  @default(true) // Si el usuario puede verlo
@@ -193,7 +194,7 @@ model TrainerComment {
   
   // Relations
   enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
-  author       User       @relation(fields: [userId], references: [id])
+  author       User?      @relation(fields: [userId], references: [id])
   
   @@index([enrollmentId, createdAt])
   @@map("trainer_comments")
@@ -236,14 +237,14 @@ model ExerciseLog {
   completed    Boolean  @default(false)
   
   // Fecha de realización
-  performedAt  DateTime @default(now())
+  logDate  DateTime @default(now())
   createdAt    DateTime @default(now())
   
   // Relations
   enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
   exercise     Exercise?  @relation(fields: [exerciseId], references: [id])
   
-  @@index([enrollmentId, performedAt])
+  @@index([enrollmentId, logDate])
   @@index([exerciseId])
   @@map("exercise_logs")
 }
