@@ -133,7 +133,7 @@ export default function Home() {
    {
   name: "RETO FITNESS 2da EDICIÓN",
   duration: "12 semanas",
-  price: "$1,700",
+  price: "$1,699",
   image: "/planes/reto.jpg",
   isReto: true,
   bg: "dark",
