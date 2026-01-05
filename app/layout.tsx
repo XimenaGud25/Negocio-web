@@ -1,3 +1,4 @@
+import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
@@ -14,23 +15,22 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Fitness para la vida",
-  description: "Entrenamiento y nutrición personalizada",
+  title: "Fitness Para La Vida",
+  description: "Entrenamiento y nutrición personalizados",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="es">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
-
-        {/* FOOTER GLOBAL */}
+        <Header />
+        <main className="pt-24">{children}</main>
         <Footer />
       </body>
     </html>

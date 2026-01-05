@@ -31,7 +31,7 @@ export default function Home() {
               Planes
             </a>
             <a
-              href="/login"
+              href="/dashboard/login"
               className="text-yellow-500 font-bold hover:text-yellow-600 transition"
             >
               Iniciar sesión
@@ -133,7 +133,7 @@ export default function Home() {
    {
   name: "RETO FITNESS 2da EDICIÓN",
   duration: "12 semanas",
-  price: "$1,700",
+  price: "$1,699",
   image: "/planes/reto.jpg",
   isReto: true,
   bg: "dark",
