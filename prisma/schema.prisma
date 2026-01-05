@@ -1,0 +1,249 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ENUMS
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum EnrollmentStatus {
+  ACTIVE      // Plan activo
+  EXPIRING    // Por vencer (7 días antes)
+  EXPIRED     // Vencido
+}
+
+enum MediaType {
+  INITIAL_PHOTO   // Foto inicial (pesaje)
+  DAY_1_VIDEO     // Video día 1
+  FINAL_VIDEO     // Video último día
+}
+
+enum DocumentType {
+  DIET_PDF        // PDF de dieta
+  ROUTINE_PDF     // PDF de rutina
+}
+
+// USER & AUTHENTICATION
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String   @unique
+  password  String   // Hashed with bcrypt
+  name      String
+  role      Role     @default(USER)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  enrollments      Enrollment[]
+  trainerComments  TrainerComment[]
+  
+  @@index([email])
+  @@index([username])
+  @@map("users")
+}
+
+// PLANS (Public - hasta 5 planes)
+
+model Plan {
+  id          String   @id @default(cuid())
+  name        String   // "RETO FITNESS 2da EDICIÓN", "Plan Básico", etc.
+  description String   @db.Text
+  duration    Int      // Duración en días (ej: 84 para 12 semanas)
+  price       Decimal  @db.Decimal(10, 2)
+  features    String[] // Array de características incluidas
+  isActive    Boolean  @default(true) // Para mostrar/ocultar en público
+  order       Int      @default(0) // Orden de visualización
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  enrollments Enrollment[]
+  
+  @@index([isActive, order])
+  @@map("plans")
+}
+
+// ENROLLMENT (Ciclo de plan por usuario)
+
+model Enrollment {
+  id          String           @id @default(cuid())
+  userId      String
+  planId      String
+  
+  // Fechas del ciclo
+  startDate   DateTime
+  endDate     DateTime
+  status      EnrollmentStatus @default(ACTIVE)
+  
+  // Tracking
+  daysRemaining Int?           // Calculado o actualizado
+  notified7Days Boolean        @default(false) // Si ya se notificó 7 días antes
+  
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  
+  // Relations
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan            Plan              @relation(fields: [planId], references: [id])
+  progress        Progress[]
+  media           Media[]
+  documents       Document[]
+  trainerComments TrainerComment[]
+  exerciseLogs    ExerciseLog[]
+  
+  @@index([userId, status])
+  @@index([status, endDate])
+  @@map("enrollments")
+}
+
+// PROGRESS (Cada 15 días)
+
+model Progress {
+  id           String   @id @default(cuid())
+  enrollmentId String
+  
+  // Datos de progreso
+  dayNumber    Int      // Día 1, 15, 30, 45, etc.
+  weight       Decimal? @db.Decimal(5, 2) // Peso en kg
+  bodyFat      Decimal? @db.Decimal(5, 2) // Porcentaje de grasa corporal
+  muscleMass   Decimal? @db.Decimal(5, 2) // Masa muscular
+  measurements Json?    // Medidas: pecho, cintura, cadera, brazos, etc.
+  notes        String?  @db.Text
+  
+  recordedAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+  
+  // Relations
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  
+  @@unique([enrollmentId, dayNumber]) // Solo un registro por día específico
+  @@index([enrollmentId, dayNumber])
+  @@map("progress")
+}
+
+// MEDIA (Fotos y Videos)
+
+model Media {
+  id           String    @id @default(cuid())
+  enrollmentId String
+  
+  type         MediaType
+  fileName     String    // Nombre del archivo
+  filePath     String    // Ruta relativa o URL
+  fileSize     Int?      // Tamaño en bytes
+  mimeType     String?   // image/jpeg, video/mp4, etc.
+  
+  uploadedAt   DateTime  @default(now())
+  
+  // Relations
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  
+  @@index([enrollmentId, type])
+  @@map("media")
+}
+
+// DOCUMENTS (PDFs de dieta y rutina)
+
+model Document {
+  id           String       @id @default(cuid())
+  enrollmentId String
+  
+  type         DocumentType
+  fileName     String       // Nombre del archivo
+  filePath     String       // Ruta relativa o URL
+  fileSize     Int?         // Tamaño en bytes
+  description  String?      @db.Text
+  
+  uploadedAt   DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  
+  // Relations
+  enrollment   Enrollment   @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  
+  @@index([enrollmentId, type])
+  @@map("documents")
+}
+
+// TRAINER COMMENTS (Comentarios del entrenador)
+
+model TrainerComment {
+  id           String   @id @default(cuid())
+  enrollmentId String
+  userId       String   // El admin que escribió el comentario
+  
+  comment      String   @db.Text
+  isVisible    Boolean  @default(true) // Si el usuario puede verlo
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relations
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  author       User       @relation(fields: [userId], references: [id])
+  
+  @@index([enrollmentId, createdAt])
+  @@map("trainer_comments")
+}
+
+// EXERCISES (Catálogo - Opción B para futuro)
+
+model Exercise {
+  id          String   @id @default(cuid())
+  name        String
+  description String?  @db.Text
+  imagePath   String?  // Ruta a imagen demostrativa
+  category    String?  // "Pecho", "Espalda", "Piernas", etc.
+  difficulty  String?  // "Principiante", "Intermedio", "Avanzado"
+  
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  exerciseLogs ExerciseLog[]
+  
+  @@index([category, isActive])
+  @@map("exercises")
+}
+
+// EXERCISE LOGS (Registro de ejercicios realizados)
+
+model ExerciseLog {
+  id           String   @id @default(cuid())
+  enrollmentId String
+  exerciseId   String?  // Opcional si no usa catálogo
+  
+  // Datos del ejercicio
+  exerciseName String   // Nombre del ejercicio (manual o del catálogo)
+  sets         Int?     // Número de series
+  reps         Int?     // Repeticiones
+  weight       Decimal? @db.Decimal(6, 2) // Peso usado (kg o lbs)
+  notes        String?  @db.Text
+  completed    Boolean  @default(false)
+  
+  // Fecha de realización
+  performedAt  DateTime @default(now())
+  createdAt    DateTime @default(now())
+  
+  // Relations
+  enrollment   Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  exercise     Exercise?  @relation(fields: [exerciseId], references: [id])
+  
+  @@index([enrollmentId, performedAt])
+  @@index([exerciseId])
+  @@map("exercise_logs")
+}
