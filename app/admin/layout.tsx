@@ -24,7 +24,7 @@ export default function AdminLayout({
             href="/admin"
             className="block px-4 py-2 rounded hover:bg-gray-800"
           >
-            Dashboard
+            Inicio
           </Link>
 
           <Link
@@ -32,6 +32,12 @@ export default function AdminLayout({
             className="block px-4 py-2 rounded hover:bg-gray-800"
           >
             Usuarios
+          </Link>
+          <Link
+            href="/admin/usuario/crear"
+            className="block px-4 py-2 rounded hover:bg-gray-800"
+          >
+            Crear usuario
           </Link>
 
           <Link

@@ -81,11 +81,11 @@ export default function Home() {
       {[
         {
           title: "Asesoría nutricional",
-          img: "/servicios/asesoria.jpg",
+          img: "/servicios/asesoria.jpeg",
         },
         {
           title: "Entrenamiento personalizado",
-          img: "/servicios/personalizado.jpg",
+          img: "/servicios/personalizado.jpeg",
         },
         {
           title: "Entrenamiento deportivo",
@@ -97,7 +97,7 @@ export default function Home() {
         },
         {
           title: "Entrenamiento en línea",
-          img: "/servicios/online.jpg",
+          img: "/servicios/online.jpeg",
         },
       ].map((service, index) => (
         <div
