@@ -20,7 +20,7 @@ export default function LoginPage() {
             <div>
               <label className="block text-sm mb-2">Usuario</label>
               <input
-                type="email"
+                type="text"
                 placeholder="nombre de usuario"
                 className="w-full px-4 py-3 rounded-lg bg-black border border-gray-700 text-white focus:outline-none focus:border-yellow-400"
               />
