@@ -4,42 +4,6 @@ export default function Home() {
   return (
     <main className="text-gray-900">
 
-      {/* ================= HEADER ================= */}
-      <header className="fixed top-0 w-full bg-white shadow-md z-50">
-        <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
-          
-          {/* Logo + nombre */}
-          <div className="flex items-center gap-3">
-            <Image
-              src="/logo.png"
-              alt="Fitness Para La Vida"
-              width={50}
-              height={50}
-              priority
-            />
-            <span className="font-extrabold text-lg tracking-wide">
-              FITNESS PARA LA VIDA
-            </span>
-          </div>
-
-          {/* Menú */}
-          <nav className="flex gap-6 font-medium">
-            <a href="#servicios" className="hover:text-yellow-400 transition">
-              Servicios
-            </a>
-            <a href="#planes" className="hover:text-yellow-400 transition">
-              Planes
-            </a>
-            <a
-              href="/login"
-              className="text-yellow-500 font-bold hover:text-yellow-600 transition"
-            >
-              Iniciar sesión
-            </a>
-          </nav>
-        </div>
-      </header>
-
       {/* ================= HERO ================= */}
       <section className="bg-black text-white pt-36 pb-28">
         <div className="max-w-7xl mx-auto px-6 text-center">

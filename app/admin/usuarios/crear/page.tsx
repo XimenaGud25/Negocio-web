@@ -25,6 +25,8 @@ export default function CrearUsuarioPage() {
     startDate: new Date().toISOString().split("T")[0],
   });
   const [error, setError] = useState("");
+  const [dietFile, setDietFile] = useState<File | null>(null);
+  const [routineFile, setRoutineFile] = useState<File | null>(null);
 
   useEffect(() => {
     fetchPlans();
@@ -57,6 +59,28 @@ export default function CrearUsuarioPage() {
       const data = await res.json();
 
       if (res.ok) {
+        // Upload documents if files are selected and we have an enrollment
+        if ((dietFile || routineFile) && data.enrollmentId) {
+          const formDataFiles = new FormData();
+          formDataFiles.append("enrollmentId", data.enrollmentId);
+          
+          if (dietFile) {
+            formDataFiles.append("dietFile", dietFile);
+          }
+          if (routineFile) {
+            formDataFiles.append("routineFile", routineFile);
+          }
+
+          const uploadResponse = await fetch("/api/admin/documents", {
+            method: "POST",
+            body: formDataFiles,
+          });
+
+          if (!uploadResponse.ok) {
+            console.error("Error al subir archivos");
+          }
+        }
+
         router.push("/admin");
       } else {
         setError(data.error || "Error al crear usuario");
@@ -145,7 +169,7 @@ export default function CrearUsuarioPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Contrase�a *
+              Contraseña *
             </label>
             <input
               type="password"
@@ -161,7 +185,7 @@ export default function CrearUsuarioPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Tel�fono
+              Teléfono
             </label>
             <input
               type="tel"
@@ -187,7 +211,7 @@ export default function CrearUsuarioPage() {
               <option value="">Sin plan asignado</option>
               {plans.map((plan) => (
                 <option key={plan.id} value={plan.id}>
-                  {plan.name} - {plan.durationDays} d�as
+                  {plan.name} - {plan.durationDays} días
                 </option>
               ))}
             </select>
@@ -208,6 +232,52 @@ export default function CrearUsuarioPage() {
               />
             </div>
           )}
+        </div>
+
+        {/* Sección de archivos PDF */}
+        <div className="border-t pt-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            Subir Archivos (Opcional)
+          </h3>
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                PDF de Dieta
+              </label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-blue-500 transition">
+                <input
+                  type="file"
+                  accept=".pdf"
+                  onChange={(e) => setDietFile(e.target.files?.[0] || null)}
+                  className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+                {dietFile && (
+                  <p className="mt-2 text-sm text-green-600">
+                    ✓ {dietFile.name}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                PDF de Rutina
+              </label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-blue-500 transition">
+                <input
+                  type="file"
+                  accept=".pdf"
+                  onChange={(e) => setRoutineFile(e.target.files?.[0] || null)}
+                  className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+                {routineFile && (
+                  <p className="mt-2 text-sm text-green-600">
+                    ✓ {routineFile.name}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="flex justify-end gap-4 pt-4">
