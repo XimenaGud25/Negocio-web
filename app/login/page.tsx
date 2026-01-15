@@ -1,6 +1,49 @@
+"use client";
+
 import Image from "next/image";
+import { signIn } from "next-auth/react";
+import { useState, FormEvent } from "react";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const result = await signIn("credentials", {
+        username,
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError(result.error);
+      } else if (result?.ok) {
+        // Obtener la sesión para verificar el rol
+        const response = await fetch("/api/auth/session");
+        const session = await response.json();
+        
+        if (session?.user?.role === "ADMIN") {
+          router.push("/admin");
+        } else {
+          router.push("/dashboard");
+        }
+      }
+    } catch (err) {
+      setError("Error al iniciar sesión. Intenta nuevamente.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <main className="min-h-screen flex items-center justify-center bg-black px-4">
       <div className="w-full max-w-5xl bg-[#0f0f0f] rounded-2xl shadow-2xl overflow-hidden grid md:grid-cols-2">
@@ -15,14 +58,25 @@ export default function LoginPage() {
             Inicia sesión para consultar tu plan y tu progreso
           </p>
 
-          <form className="space-y-6">
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            {/* Mensaje de error */}
+            {error && (
+              <div className="bg-red-500/10 border border-red-500 text-red-500 px-4 py-3 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+
             {/* Usuario */}
             <div>
               <label className="block text-sm mb-2">Usuario</label>
               <input
                 type="text"
                 placeholder="nombre de usuario"
-                className="w-full px-4 py-3 rounded-lg bg-black border border-gray-700 text-white focus:outline-none focus:border-yellow-400"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                disabled={loading}
+                required
+                className="w-full px-4 py-3 rounded-lg bg-black border border-gray-700 text-white focus:outline-none focus:border-yellow-400 disabled:opacity-50"
               />
             </div>
 
@@ -32,16 +86,21 @@ export default function LoginPage() {
               <input
                 type="password"
                 placeholder="••••••••"
-                className="w-full px-4 py-3 rounded-lg bg-black border border-gray-700 text-white focus:outline-none focus:border-yellow-400"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+                required
+                className="w-full px-4 py-3 rounded-lg bg-black border border-gray-700 text-white focus:outline-none focus:border-yellow-400 disabled:opacity-50"
               />
             </div>
 
             {/* Botón */}
             <button
               type="submit"
-              className="w-full bg-yellow-400 text-black py-3 rounded-lg font-bold hover:bg-yellow-500 transition"
+              disabled={loading}
+              className="w-full bg-yellow-400 text-black py-3 rounded-lg font-bold hover:bg-yellow-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Iniciar sesión
+              {loading ? "Iniciando sesión..." : "Iniciar sesión"}
             </button>
           </form>
 
