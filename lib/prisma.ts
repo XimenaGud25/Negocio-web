@@ -8,14 +8,10 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-// Debug: show which engine type Prisma sees at runtime
-if (process.env.NODE_ENV === 'development') {
-  // eslint-disable-next-line no-console
-  console.debug('PRISMA_CLIENT_ENGINE_TYPE:', process.env.PRISMA_CLIENT_ENGINE_TYPE)
-}
-
+// Keep Prisma logging minimal to avoid noisy query logs in development.
+// Only show errors (and warnings optionally).
 export const prisma = globalForPrisma.prisma ?? new PrismaClient({
-  log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+  log: ['error'],
 })
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma

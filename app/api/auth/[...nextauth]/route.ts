@@ -5,6 +5,12 @@ import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/auth";
 
 export const authOptions: NextAuthOptions = {
+  // Ensure a stable secret is provided via environment. If this value
+  // changes while users have active sessions, existing encrypted tokens
+  // will fail to decrypt ("Invalid Compact JWE"). Set NEXTAUTH_SECRET
+  // in your environment (e.g. .env.local) and ask users to clear cookies
+  // if you rotate the secret.
+  secret: process.env.NEXTAUTH_SECRET,
   adapter: PrismaAdapter(prisma),
   providers: [
     CredentialsProvider({

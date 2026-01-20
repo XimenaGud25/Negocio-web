@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import DocumentViewer from "@/components/ui/document-viewer";
 
 interface Plan {
   id: string;
@@ -43,7 +45,17 @@ export default function EditarUsuarioPage() {
   const [saving, setSaving] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [viewingDoc, setViewingDoc] = useState<Document | null>(null);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [changingPlanId, setChangingPlanId] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingEnrollment, setPendingEnrollment] = useState<{
+    enrollmentId: string
+    planId: string
+    planName?: string
+  } | null>(null);
   const [dietFile, setDietFile] = useState<File | null>(null);
+  const [reportFile, setReportFile] = useState<File | null>(null);
   const [routineFile, setRoutineFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     name: "",
@@ -57,6 +69,7 @@ export default function EditarUsuarioPage() {
 
   useEffect(() => {
     fetchUser();
+    fetchPlans();
   }, [userId]);
 
   useEffect(() => {
@@ -103,10 +116,66 @@ export default function EditarUsuarioPage() {
     }
   };
 
+  const fetchPlans = async () => {
+    try {
+      const res = await fetch(`/api/admin/plans`);
+      if (res.ok) {
+        const data = await res.json();
+        setPlans(data || []);
+      }
+    } catch (error) {
+      console.error("Error fetching plans:", error);
+    }
+  };
+
+  const handleChangePlan = async (enrollmentId: string, planId: string) => {
+    // Open modal to confirm; store pending values
+    const planName = plans.find((p) => p.id === planId)?.name;
+    setPendingEnrollment({ enrollmentId, planId, planName });
+    setConfirmOpen(true);
+  };
+
+  const onConfirmChangePlan = async () => {
+    if (!pendingEnrollment) return;
+    const { enrollmentId, planId } = pendingEnrollment;
+    setConfirmOpen(false);
+    setChangingPlanId(enrollmentId);
+    setError("");
+    setSuccess("");
+    try {
+      const res = await fetch(`/api/admin/enrollments/${enrollmentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planId }),
+      });
+
+      if (res.ok) {
+        setSuccess("Plan actualizado exitosamente");
+        await fetchUser();
+        await fetchDocuments();
+      } else {
+        const data = await res.json();
+        setError(data.error || "Error al actualizar plan");
+      }
+    } catch (error) {
+      console.error("Error changing plan:", error);
+      setError("Error al actualizar plan");
+    } finally {
+      setChangingPlanId(null);
+      setPendingEnrollment(null);
+    }
+  };
+
   const handleUploadDocuments = async () => {
-    if (!user?.enrollments[0]?.id || (!dietFile && !routineFile)) return;
+    if (!user?.enrollments[0]?.id || (!dietFile && !routineFile && !reportFile)) return;
 
     try {
+      console.log('[UPLOAD] Preparing to upload files', {
+        enrollmentId: user.enrollments[0].id,
+        diet: dietFile?.name,
+        routine: routineFile?.name,
+        report: reportFile?.name,
+      });
       const formDataFiles = new FormData();
       formDataFiles.append("enrollmentId", user.enrollments[0].id);
       
@@ -116,6 +185,9 @@ export default function EditarUsuarioPage() {
       if (routineFile) {
         formDataFiles.append("routineFile", routineFile);
       }
+      if (reportFile) {
+        formDataFiles.append("reportFile", reportFile);
+      }
 
       const uploadResponse = await fetch("/api/admin/documents", {
         method: "POST",
@@ -124,6 +196,7 @@ export default function EditarUsuarioPage() {
 
       if (uploadResponse.ok) {
         setDietFile(null);
+        setReportFile(null);
         setRoutineFile(null);
         fetchDocuments();
         setSuccess("Documentos subidos exitosamente");
@@ -158,6 +231,11 @@ export default function EditarUsuarioPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    await saveUser();
+  };
+
+  // Extracted save logic so it can be called from a global button
+  const saveUser = async () => {
     setSaving(true);
     setError("");
     setSuccess("");
@@ -247,12 +325,21 @@ export default function EditarUsuarioPage() {
             </p>
           </div>
         </div>
-        <button
-          onClick={handleDelete}
-          className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold transition"
-        >
-          Eliminar Usuario
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => saveUser()}
+            disabled={saving}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold transition"
+          >
+            {saving ? "Guardando..." : "Guardar Cambios"}
+          </button>
+          <button
+            onClick={handleDelete}
+            className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold transition"
+          >
+            Eliminar Usuario
+          </button>
+        </div>
       </div>
 
       <form
@@ -348,19 +435,7 @@ export default function EditarUsuarioPage() {
         </div>
 
         <div className="flex gap-4 pt-6">
-          <button
-            type="submit"
-            disabled={saving}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white py-3 rounded-lg font-semibold transition"
-          >
-            {saving ? "Guardando..." : "Guardar Cambios"}
-          </button>
-          <Link
-            href="/admin"
-            className="px-6 py-3 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50 transition"
-          >
-            Cancelar
-          </Link>
+          <div />
         </div>
       </form>
 
@@ -387,27 +462,28 @@ export default function EditarUsuarioPage() {
                   key={doc.id}
                   className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">
-                      {doc.type === "DIET" ? "🥗" : "💪"}
-                    </span>
-                    <div>
-                      <p className="font-medium text-gray-900">{doc.filename}</p>
-                      <p className="text-sm text-gray-500">
-                        {doc.type === "DIET" ? "Dieta" : "Rutina"} •{" "}
-                        {(doc.fileSize / 1024).toFixed(2)} KB
-                      </p>
-                    </div>
-                  </div>
+                      <div className="flex items-center gap-3">
+                        {doc.type === "REPORT" ? (
+                          <div className="w-16 h-12 rounded overflow-hidden bg-white border">
+                            <img src={doc.url} alt={doc.filename} className="w-full h-full object-cover" />
+                          </div>
+                        ) : (
+                          <span className="text-2xl">{doc.type === "DIET" ? "🥗" : "💪"}</span>
+                        )}
+                        <div>
+                          <p className="font-medium text-gray-900">{doc.filename}</p>
+                          <p className="text-sm text-gray-500">
+                            {doc.type === "DIET" ? "Dieta" : doc.type === "ROUTINE" ? "Rutina" : "Informe"} • {((doc.fileSize || 0) / 1024).toFixed(2)} KB
+                          </p>
+                        </div>
+                      </div>
                   <div className="flex gap-2">
-                    <a
-                      href={doc.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      onClick={() => setViewingDoc(doc)}
                       className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition"
                     >
                       Ver
-                    </a>
+                    </button>
                     <button
                       onClick={() => handleDeleteDocument(doc.id)}
                       className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm transition"
@@ -465,7 +541,24 @@ export default function EditarUsuarioPage() {
               </div>
             </div>
 
-            {(dietFile || routineFile) && (
+            <div className="mt-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Informe (imagen)
+              </label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-blue-500 transition">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setReportFile(e.target.files?.[0] || null)}
+                  className="w-full text-sm text-gray-500"
+                />
+                {reportFile && (
+                  <p className="mt-2 text-sm text-green-600">✓ {reportFile.name}</p>
+                )}
+              </div>
+            </div>
+
+            {(dietFile || routineFile || reportFile) && (
               <button
                 type="button"
                 onClick={handleUploadDocuments}
@@ -492,7 +585,23 @@ export default function EditarUsuarioPage() {
               >
                 <div>
                   <p className="font-semibold text-gray-900">
-                    {enrollment.plan.name}
+                    <label className="sr-only">Plan</label>
+                    <select
+                      value={enrollment.plan.id}
+                      onChange={(e) => handleChangePlan(enrollment.id, e.target.value)}
+                      disabled={changingPlanId === enrollment.id}
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      {plans.length === 0 ? (
+                        <option value={enrollment.plan.id}>{enrollment.plan.name}</option>
+                      ) : (
+                        plans.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))
+                      )}
+                    </select>
                   </p>
                   <p className="text-sm text-gray-600">
                     Inicio: {new Date(enrollment.startDate).toLocaleDateString()} •
@@ -519,6 +628,26 @@ export default function EditarUsuarioPage() {
           </ul>
         </div>
       )}
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Confirmar cambio de plan"
+        description={
+          pendingEnrollment
+            ? `Vas a cambiar el plan a: ${pendingEnrollment.planName || ""}. ¿Deseas continuar?`
+            : undefined
+        }
+        confirmLabel="Sí, cambiar"
+        cancelLabel="Cancelar"
+        onConfirm={onConfirmChangePlan}
+      />
+      <DocumentViewer
+        open={!!viewingDoc}
+        onOpenChange={(open) => { if (!open) setViewingDoc(null); }}
+        url={viewingDoc?.url}
+        type={viewingDoc?.type}
+        filename={viewingDoc?.filename}
+      />
     </div>
   );
 }

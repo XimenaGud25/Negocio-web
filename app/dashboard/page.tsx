@@ -27,24 +27,6 @@ export default async function DashboardPublicPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="bg-black text-white">
-        <MaxWidthWrapper className="py-6 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Image src="/logo.png" alt="logo" width={48} height={48} />
-            <div>
-              <h1 className="font-extrabold text-xl">Fitness Para La Vida</h1>
-              <p className="text-sm text-gray-300">Disciplina · Constancia · Resultados</p>
-            </div>
-          </div>
-
-          <nav className="space-x-6">
-            <a href="/" className="hover:text-yellow-400">Inicio</a>
-            <a href="/dashboard#planes" className="hover:text-yellow-400">Planes</a>
-            <a href="/login" className="hover:text-yellow-400">Iniciar sesión</a>
-          </nav>
-        </MaxWidthWrapper>
-      </header>
-
       <main className="flex-1">
         <MaxWidthWrapper className="py-16">
           <section className="grid gap-12 md:grid-cols-2 items-center">

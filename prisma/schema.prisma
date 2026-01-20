@@ -32,6 +32,7 @@ enum MediaType {
 enum DocumentType {
   DIET        // PDF de dieta
   ROUTINE     // PDF de rutina
+  REPORT      // Informe general como imagen (jpg/png)
 }
 
 // USER & AUTHENTICATION
@@ -53,6 +54,7 @@ model User {
   trainerComments  TrainerComment[]
   accounts         Account[]
   sessions         Session[]
+  favoriteExercises FavoriteExercise[]
   
   @@index([email])
   @@index([username])
@@ -291,4 +293,56 @@ model ExerciseLog {
   @@index([enrollmentId, logDate])
   @@index([exerciseId])
   @@map("exercise_logs")
+}
+
+// FAVORITE EXERCISES (Ejercicios favoritos del usuario - de ExerciseDB API)
+
+model FavoriteExercise {
+  id             String   @id @default(cuid())
+  userId         String
+  
+  // Datos del ejercicio de ExerciseDB
+  exerciseApiId  String   // ID del ejercicio en ExerciseDB API
+  exerciseName   String   // Nombre en inglés
+  exerciseNameEs String?  // Nombre traducido
+  bodyPart       String   // Parte del cuerpo
+  bodyPartEs     String?  // Traducido
+  equipment      String   // Equipo necesario
+  equipmentEs    String?  // Traducido
+  target         String   // Músculo objetivo
+  targetEs       String?  // Traducido
+  gifUrl         String?  // URL del GIF
+  
+  createdAt      DateTime @default(now())
+  
+  // Relations
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  progressLogs   FavoriteExerciseProgress[]
+  
+  @@unique([userId, exerciseApiId]) // Un usuario solo puede tener un ejercicio favorito por ID
+  @@index([userId])
+  @@map("favorite_exercises")
+}
+
+// FAVORITE EXERCISE PROGRESS (Progreso en ejercicios favoritos)
+
+model FavoriteExerciseProgress {
+  id                 String   @id @default(cuid())
+  favoriteExerciseId String
+  
+  // Datos del progreso
+  sets               Int      // Número de series
+  reps               Int      // Repeticiones
+  weight             Decimal? @db.Decimal(6, 2) // Peso en kg
+  duration           Int?     // Duración en segundos (para cardio)
+  notes              String?  @db.Text
+  
+  logDate            DateTime @default(now())
+  createdAt          DateTime @default(now())
+  
+  // Relations
+  favoriteExercise   FavoriteExercise @relation(fields: [favoriteExerciseId], references: [id], onDelete: Cascade)
+  
+  @@index([favoriteExerciseId, logDate])
+  @@map("favorite_exercise_progress")
 }
