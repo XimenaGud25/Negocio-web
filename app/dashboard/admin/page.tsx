@@ -2,6 +2,7 @@ import MaxWidthWrapper from '@/components/max-width-wapper';
 import Footer from '@/components/Footer';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import type { Session } from 'next-auth';
 
 async function fetchAdminData() {
   try {
@@ -20,8 +21,7 @@ async function fetchAdminData() {
 }
 
 export default async function AdminDashboardPage() {
-  const session = await getServerSession(authOptions as any);
-  console.log('[AdminPage] session retrieved', { user: session?.user });
+  const session = await getServerSession(authOptions as any) as Session | null;
 
   if (!session || session.user?.role !== 'ADMIN') {
     console.log('[AdminPage] access denied - not admin or no session');

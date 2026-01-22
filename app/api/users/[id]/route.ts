@@ -7,9 +7,10 @@ import { hashPassword } from "@/lib/auth";
 // GET - Obtener un usuario específico (solo ADMIN)
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getServerSession(authOptions);
 
     if (!session || session.user.role !== "ADMIN") {
@@ -20,7 +21,7 @@ export async function GET(
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: {
         id: true,
         username: true,
@@ -53,9 +54,10 @@ export async function GET(
 // PUT - Actualizar usuario (solo ADMIN)
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getServerSession(authOptions);
 
     if (!session || session.user.role !== "ADMIN") {
@@ -70,7 +72,7 @@ export async function PUT(
 
     // Verificar que el usuario existe
     const existingUser = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!existingUser) {
@@ -124,7 +126,7 @@ export async function PUT(
 
     // Actualizar usuario
     const updatedUser = await prisma.user.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
       select: {
         id: true,
@@ -151,9 +153,10 @@ export async function PUT(
 // DELETE - Eliminar usuario (solo ADMIN)
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await getServerSession(authOptions);
 
     if (!session || session.user.role !== "ADMIN") {
@@ -164,7 +167,7 @@ export async function DELETE(
     }
 
     // Verificar que no se esté eliminando a sí mismo
-    if (session.user.id === params.id) {
+    if (session.user.id === id) {
       return NextResponse.json(
         { error: "No puedes eliminar tu propia cuenta" },
         { status: 400 }
@@ -173,7 +176,7 @@ export async function DELETE(
 
     // Verificar que el usuario existe
     const existingUser = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!existingUser) {
@@ -185,7 +188,7 @@ export async function DELETE(
 
     // Eliminar usuario
     await prisma.user.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json(
