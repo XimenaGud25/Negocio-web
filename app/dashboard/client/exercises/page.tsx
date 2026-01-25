@@ -17,19 +17,20 @@ import { cn } from "@/lib/utils";
 
 type Exercise = {
   id: string;
-  name: string;
-  name_es: string;
-  bodyPart: string;
-  bodyPart_es: string;
-  equipment: string;
-  equipment_es: string;
-  target: string;
-  target_es: string;
-  gifUrl: string;
-  secondaryMuscles: string[];
-  secondaryMuscles_es: string[];
-  instructions: string[];
-  instructions_es: string[];
+  nameEs: string;
+  nameEn: string;
+  descriptionEs: string;
+  descriptionEn: string;
+  instructions: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  primaryMuscles: Array<{id: string; nameEs: string; nameEn: string; image?: string}>;
+  secondaryMuscles: Array<{id: string; nameEs: string; nameEn: string; image?: string}>;
+  equipment: Array<{id: string; nameEs: string; nameEn: string; image?: string}>;
+  variations: string[];
+  tips: string[];
+  images?: string[];
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 type FavoriteExercise = {
@@ -37,18 +38,11 @@ type FavoriteExercise = {
   exerciseApiId: string;
 };
 
-const bodyParts = [
-  { value: "all", label: "Todas las partes" },
-  { value: "back", label: "Espalda" },
-  { value: "cardio", label: "Cardio" },
-  { value: "chest", label: "Pecho" },
-  { value: "lower arms", label: "Antebrazos" },
-  { value: "lower legs", label: "Piernas inferiores" },
-  { value: "neck", label: "Cuello" },
-  { value: "shoulders", label: "Hombros" },
-  { value: "upper arms", label: "Brazos superiores" },
-  { value: "upper legs", label: "Piernas superiores" },
-  { value: "waist", label: "Cintura" },
+const difficulties = [
+  { value: "all", label: "Todas las dificultades" },
+  { value: "beginner", label: "Principiante" },
+  { value: "intermediate", label: "Intermedio" },
+  { value: "advanced", label: "Avanzado" },
 ];
 
 export default function ClientExercisesPage() {
@@ -57,7 +51,9 @@ export default function ClientExercisesPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [bodyPartFilter, setBodyPartFilter] = useState("all");
+  const [difficultyFilter, setDifficultyFilter] = useState("all");
+  const [muscles, setMuscles] = useState<any[]>([]);
+  const [equipment, setEquipment] = useState<any[]>([]);
   const [savingFavorite, setSavingFavorite] = useState<string | null>(null);
 
   // Cargar ejercicios
@@ -68,8 +64,8 @@ export default function ClientExercisesPage() {
     try {
       const params = new URLSearchParams();
       params.append("limit", "50");
-      if (bodyPartFilter && bodyPartFilter !== "all") {
-        params.append("bodyPart", bodyPartFilter);
+      if (difficultyFilter && difficultyFilter !== "all") {
+        params.append("difficulty", difficultyFilter);
       }
 
       const url = `/api/exercises?${params.toString()}`;
@@ -80,14 +76,21 @@ export default function ClientExercisesPage() {
       }
 
       const data = await res.json();
-      setExercises(data);
+      // Handle different response formats
+      if (data.exercises) {
+        setExercises(data.exercises);
+      } else if (Array.isArray(data)) {
+        setExercises(data);
+      } else {
+        setExercises([]);
+      }
     } catch (err) {
       setError((err as Error).message);
       setExercises([]);
     } finally {
       setLoading(false);
     }
-  }, [bodyPartFilter]);
+  }, [difficultyFilter]);
 
   // Cargar favoritos del usuario
   const fetchFavorites = useCallback(async () => {
@@ -102,10 +105,33 @@ export default function ClientExercisesPage() {
     }
   }, []);
 
+  // Cargar datos de filtros
+  const fetchFiltersData = useCallback(async () => {
+    try {
+      const [musclesRes, equipmentRes] = await Promise.all([
+        fetch('/api/muscles'),
+        fetch('/api/equipment')
+      ]);
+      
+      if (musclesRes.ok) {
+        const musclesData = await musclesRes.json();
+        setMuscles(musclesData);
+      }
+      
+      if (equipmentRes.ok) {
+        const equipmentData = await equipmentRes.json();
+        setEquipment(equipmentData);
+      }
+    } catch (err) {
+      console.error('Error loading filters data:', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchExercises();
     fetchFavorites();
-  }, [fetchExercises, fetchFavorites]);
+    fetchFiltersData();
+  }, [fetchExercises, fetchFavorites, fetchFiltersData]);
 
   // Verificar si un ejercicio es favorito
   const isFavorite = (exerciseId: string) => {
@@ -137,15 +163,15 @@ export default function ClientExercisesPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             exerciseApiId: exercise.id,
-            exerciseName: exercise.name,
-            exerciseNameEs: exercise.name_es,
-            bodyPart: exercise.bodyPart,
-            bodyPartEs: exercise.bodyPart_es,
-            equipment: exercise.equipment,
-            equipmentEs: exercise.equipment_es,
-            target: exercise.target,
-            targetEs: exercise.target_es,
-            gifUrl: exercise.gifUrl,
+            exerciseName: exercise.nameEn,
+            exerciseNameEs: exercise.nameEs,
+            bodyPart: exercise.primaryMuscles[0]?.nameEn || '',
+            bodyPartEs: exercise.primaryMuscles[0]?.nameEs || '',
+            equipment: exercise.equipment[0]?.nameEn || '',
+            equipmentEs: exercise.equipment[0]?.nameEs || '',
+            target: exercise.primaryMuscles[0]?.nameEn || '',
+            targetEs: exercise.primaryMuscles[0]?.nameEs || '',
+            gifUrl: exercise.images?.[0] || '',
           }),
         });
 
@@ -162,16 +188,18 @@ export default function ClientExercisesPage() {
   };
 
   // Filtrar ejercicios por búsqueda
-  const filteredExercises = exercises.filter((ex) => {
+  const filteredExercises = Array.isArray(exercises) ? exercises.filter((ex) => {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
     return (
-      ex.name_es.toLowerCase().includes(term) ||
-      ex.name.toLowerCase().includes(term) ||
-      ex.target_es.toLowerCase().includes(term) ||
-      ex.bodyPart_es.toLowerCase().includes(term)
+      ex.nameEs.toLowerCase().includes(term) ||
+      ex.nameEn.toLowerCase().includes(term) ||
+      ex.descriptionEs.toLowerCase().includes(term) ||
+      ex.primaryMuscles.some(muscle => muscle.nameEs?.toLowerCase().includes(term)) ||
+      ex.secondaryMuscles.some(muscle => muscle.nameEs?.toLowerCase().includes(term)) ||
+      ex.equipment.some(equip => equip.nameEs?.toLowerCase().includes(term))
     );
-  });
+  }) : [];
 
   return (
     <div className="space-y-6">
@@ -197,18 +225,18 @@ export default function ClientExercisesPage() {
             </div>
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4 text-gray-500" />
-              <Select value={bodyPartFilter} onValueChange={setBodyPartFilter}>
+              <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
                 <SelectTrigger className="w-[200px] bg-black border-gray-700 text-white">
-                  <SelectValue placeholder="Parte del cuerpo" />
+                  <SelectValue placeholder="Dificultad" />
                 </SelectTrigger>
                 <SelectContent className="bg-black border-gray-700">
-                  {bodyParts.map((part) => (
+                  {difficulties.map((difficulty) => (
                     <SelectItem
-                      key={part.value}
-                      value={part.value}
+                      key={difficulty.value}
+                      value={difficulty.value}
                       className="text-white hover:bg-gray-800"
                     >
-                      {part.label}
+                      {difficulty.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -254,13 +282,16 @@ export default function ClientExercisesPage() {
           >
             <CardContent className="p-0">
               <div className="flex">
-                {/* Exercise GIF */}
+                {/* Exercise Image */}
                 <div className="flex-shrink-0">
-                  {ex.gifUrl ? (
+                  {ex.images && ex.images.length > 0 ? (
                     <img
-                      src={ex.gifUrl}
-                      alt={ex.name_es}
+                      src={ex.images[0]}
+                      alt={ex.nameEs}
                       className="w-32 h-32 object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
                     />
                   ) : (
                     <div className="w-32 h-32 bg-gray-900 flex items-center justify-center text-xs text-gray-500">
@@ -274,9 +305,18 @@ export default function ClientExercisesPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <h2 className="font-bold text-lg text-yellow-400 truncate">
-                        {ex.name_es}
+                        {ex.nameEs}
                       </h2>
-                      <p className="text-xs text-gray-500 truncate">{ex.name}</p>
+                      <p className="text-xs text-gray-500 truncate">{ex.nameEn}</p>
+                      {ex.difficulty && (
+                        <span className={`inline-block px-2 py-1 text-xs rounded-full mt-1 ${
+                          ex.difficulty === 'beginner' ? 'bg-green-600' :
+                          ex.difficulty === 'intermediate' ? 'bg-yellow-600' : 'bg-red-600'
+                        } text-white`}>
+                          {ex.difficulty === 'beginner' ? 'Principiante' :
+                           ex.difficulty === 'intermediate' ? 'Intermedio' : 'Avanzado'}
+                        </span>
+                      )}
                     </div>
 
                     {/* Favorite Button */}
@@ -306,32 +346,51 @@ export default function ClientExercisesPage() {
                   </div>
 
                   <div className="flex flex-wrap gap-2 mt-2">
-                    <Badge variant="outline" className="border-gray-700 text-gray-300">
-                      {ex.bodyPart_es}
-                    </Badge>
-                    <Badge variant="outline" className="border-gray-700 text-gray-300">
-                      {ex.equipment_es}
-                    </Badge>
+                    {ex.primaryMuscles.slice(0, 2).map((muscle, index) => (
+                      <Badge key={muscle.id || index} variant="outline" className="border-gray-700 text-gray-300">
+                        {muscle.nameEs || muscle.nameEn}
+                      </Badge>
+                    ))}
+                    {ex.equipment.slice(0, 1).map((equip, index) => (
+                      <Badge key={equip.id || index} variant="outline" className="border-blue-700 text-blue-300">
+                        {equip.nameEs || equip.nameEn}
+                      </Badge>
+                    ))}
                   </div>
 
-                  <p className="text-sm text-gray-400 mt-2">
-                    <strong>Músculo:</strong> {ex.target_es}
-                  </p>
+                  {ex.descriptionEs && (
+                    <p className="text-sm text-gray-400 mt-2">
+                      {ex.descriptionEs.length > 80 ? 
+                        `${ex.descriptionEs.substring(0, 80)}...` : 
+                        ex.descriptionEs
+                      }
+                    </p>
+                  )}
                 </div>
               </div>
 
               {/* Instructions (expandable) */}
-              {ex.instructions_es && ex.instructions_es.length > 0 && (
+              {ex.instructions && (
                 <details className="border-t border-gray-800">
                   <summary className="px-4 py-2 text-sm text-gray-400 cursor-pointer hover:bg-gray-900">
-                    Ver instrucciones ({ex.instructions_es.length} pasos)
+                    Ver instrucciones
                   </summary>
                   <div className="px-4 pb-4 text-sm text-gray-300">
-                    <ol className="list-decimal list-inside space-y-1">
-                      {ex.instructions_es.map((instruction, idx) => (
-                        <li key={idx}>{instruction}</li>
+                    <div className="space-y-1">
+                      {ex.instructions.split('\n').map((instruction, idx) => (
+                        <p key={idx}>{instruction}</p>
                       ))}
-                    </ol>
+                    </div>
+                    {ex.tips && ex.tips.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-gray-800">
+                        <p className="text-yellow-400 font-medium mb-2">💡 Consejos:</p>
+                        <ul className="list-disc list-inside space-y-1">
+                          {ex.tips.map((tip, idx) => (
+                            <li key={idx} className="text-gray-300">{tip}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 </details>
               )}

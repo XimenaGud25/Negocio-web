@@ -1,60 +1,64 @@
 import { NextRequest, NextResponse } from "next/server";
-import { translateTerm, translateExerciseName, translateInstructions, translateSecondaryMuscles } from "@/lib/translate";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const limit = searchParams.get("limit") || "30";
-    const offset = searchParams.get("offset") || "0";
-    const bodyPart = searchParams.get("bodyPart");
+    const page = searchParams.get("page") || "1";
+    const search = searchParams.get("search");
+    const difficulty = searchParams.get("difficulty");
+    const muscleId = searchParams.get("muscleId");
+    const equipmentId = searchParams.get("equipmentId");
+    const sortBy = searchParams.get("sortBy") || "name";
+    const sortOrder = searchParams.get("sortOrder") || "asc";
 
-    console.log('[GET /api/exercises] Fetching from ExerciseDB...');
+    console.log('[GET /api/exercises] Fetching from Gym Exercises API...');
 
-    // ExerciseDB endpoint via RapidAPI
-    let apiUrl = `https://exercisedb.p.rapidapi.com/exercises?limit=${limit}&offset=${offset}`;
+    // Construir parámetros de query para la API externa
+    const params = new URLSearchParams();
+    params.append("page", page);
+    params.append("limit", limit);
+    params.append("sortBy", sortBy);
+    params.append("sortOrder", sortOrder);
     
-    // If filtering by body part
-    if (bodyPart && bodyPart !== "all") {
-      apiUrl = `https://exercisedb.p.rapidapi.com/exercises/bodyPart/${encodeURIComponent(bodyPart)}?limit=${limit}&offset=${offset}`;
-    }
+    if (search) params.append("search", search);
+    if (difficulty) params.append("difficulty", difficulty);
+    if (muscleId) params.append("muscleId", muscleId);
+    if (equipmentId) params.append("equipmentId", equipmentId);
+
+    const apiUrl = `https://exercises-gym.onrender.com/api/exercises?${params.toString()}`;
 
     const response = await fetch(apiUrl, {
       headers: {
-        "X-RapidAPI-Key": process.env.EXERCISEDB_RAPIDAPI_KEY || "",
-        "X-RapidAPI-Host": "exercisedb.p.rapidapi.com"
+        "Content-Type": "application/json",
       },
-      next: { revalidate: 86400 }, // Cache for 24 hours
+      next: { revalidate: 3600 }, // Cache for 1 hour
     });
 
     if (!response.ok) {
-      console.error('[GET /api/exercises] ExerciseDB API error:', response.status);
+      console.error('[GET /api/exercises] Gym API error:', response.status);
       const errorText = await response.text();
       console.error('[GET /api/exercises] Error body:', errorText);
-      throw new Error(`ExerciseDB API error: ${response.status}`);
+      throw new Error(`Gym API error: ${response.status}`);
     }
 
-    const exercises = await response.json();
+    const data = await response.json();
 
-    // Transform and translate exercises
-    const translatedExercises = exercises.map((ex: any) => ({
-      id: ex.id,
-      name: ex.name,
-      name_es: translateExerciseName(ex.name),
-      bodyPart: ex.bodyPart,
-      bodyPart_es: translateTerm(ex.bodyPart),
-      equipment: ex.equipment,
-      equipment_es: translateTerm(ex.equipment),
-      target: ex.target,
-      target_es: translateTerm(ex.target),
-      gifUrl: ex.gifUrl,
-      secondaryMuscles: ex.secondaryMuscles || [],
-      secondaryMuscles_es: translateSecondaryMuscles(ex.secondaryMuscles || []),
-      instructions: ex.instructions || [],
-      instructions_es: translateInstructions(ex.instructions || []),
-    }));
-
-    console.log('[GET /api/exercises] Returning exercises count:', translatedExercises.length);
-    return NextResponse.json(translatedExercises);
+    // La API externa ya devuelve los ejercicios en el formato correcto con nombres en español
+    console.log('[GET /api/exercises] Returning exercises count:', data.data?.length || data.length);
+    
+    // Si la respuesta tiene el formato { data: [], total: number, page: number, etc. }
+    if (data.data) {
+      return NextResponse.json({
+        exercises: data.data,
+        total: data.total,
+        page: data.page,
+        totalPages: data.totalPages,
+      });
+    }
+    
+    // Si la respuesta es directamente un array de ejercicios
+    return NextResponse.json(data);
   } catch (error) {
     console.error("Error fetching exercises:", error);
     return NextResponse.json(

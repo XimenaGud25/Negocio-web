@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { User, Dumbbell, Heart, BarChart3, LogOut } from "lucide-react";
+import { User, Dumbbell, Heart, BarChart3, FileText, LogOut } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +26,11 @@ const navItems = [
     label: "Mi Progreso",
     href: "/dashboard/client/progress",
     icon: BarChart3,
+  },
+  {
+    label: "Mis Documentos",
+    href: "/dashboard/client/documents",
+    icon: FileText,
   },
 ];
 

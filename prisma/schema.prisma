@@ -31,8 +31,10 @@ enum MediaType {
 
 enum DocumentType {
   DIET        // PDF de dieta
-  ROUTINE     // PDF de rutina
+  ROUTINE     // PDF de rutina  
+  TRAINING    // PDF de entrenamiento
   REPORT      // Informe general como imagen (jpg/png)
+  IMAGE       // Imagenes generales
 }
 
 // USER & AUTHENTICATION
@@ -55,6 +57,8 @@ model User {
   accounts         Account[]
   sessions         Session[]
   favoriteExercises FavoriteExercise[]
+  userVideos       UserVideo[]
+  documents        Document[]
   
   @@index([email])
   @@index([username])
@@ -207,21 +211,28 @@ model Media {
 
 model Document {
   id           String       @id @default(cuid())
-  enrollmentId String
+  enrollmentId String?      // Opcional - para compatibilidad
+  userId       String?      // Usuario al que pertenece el documento (nullable para migración)
   
   type         DocumentType
-  filename     String       // Nombre del archivo
-  url          String       // Ruta relativa o URL
+  fileName     String?      // Nombre del archivo (nullable para migración)
+  filename     String?      // Campo legacy (mantener por compatibilidad)
+  filePath     String?      // Ruta del archivo en el servidor (nullable para migración)  
+  url          String?      // Campo legacy (mantener por compatibilidad)
   fileSize     Int?         // Tamaño en bytes
   description  String?      @db.Text
+  isActive     Boolean      @default(true) // Para ocultar documentos sin eliminarlos
   
-  uploadedAt   DateTime     @default(now())
+  createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
+  uploadedAt   DateTime?    // Campo legacy
   
   // Relations
-  enrollment   Enrollment   @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  enrollment   Enrollment?  @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@index([enrollmentId, type])
+  @@index([userId, type])
   @@map("documents")
 }
 
@@ -295,16 +306,16 @@ model ExerciseLog {
   @@map("exercise_logs")
 }
 
-// FAVORITE EXERCISES (Ejercicios favoritos del usuario - de ExerciseDB API)
+// FAVORITE EXERCISES (Ejercicios favoritos del usuario - de Gym API)
 
 model FavoriteExercise {
   id             String   @id @default(cuid())
   userId         String
   
-  // Datos del ejercicio de ExerciseDB
-  exerciseApiId  String   // ID del ejercicio en ExerciseDB API
+  // Datos del ejercicio de la Gym API
+  exerciseApiId  String   // ID del ejercicio en la Gym API
   exerciseName   String   // Nombre en inglés
-  exerciseNameEs String?  // Nombre traducido
+  exerciseNameEs String?  // Nombre en español
   bodyPart       String   // Parte del cuerpo
   bodyPartEs     String?  // Traducido
   equipment      String   // Equipo necesario
@@ -345,4 +356,32 @@ model FavoriteExerciseProgress {
   
   @@index([favoriteExerciseId, logDate])
   @@map("favorite_exercise_progress")
+}
+
+// USER VIDEOS (Videos subidos por usuarios)
+
+model UserVideo {
+  id          String   @id @default(cuid())
+  userId      String
+  
+  // Datos del video
+  fileName    String   // Nombre original del archivo
+  filePath    String   // Ruta del archivo en el servidor
+  fileSize    Int      // Tamaño en bytes
+  mimeType    String   // video/mp4, video/avi, etc.
+  duration    Int?     // Duración en segundos (opcional)
+  
+  // Metadatos
+  title       String?  // Título personalizado
+  description String?  @db.Text // Descripción del video
+  isVisible   Boolean  @default(true) // Si el video es visible para el entrenador
+  
+  uploadedAt  DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, uploadedAt])
+  @@map("user_videos")
 }
