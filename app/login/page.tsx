@@ -34,6 +34,7 @@ export default function LoginPage() {
         username,
         password,
         redirect: false,
+        callbackUrl: "/admin",
       });
 
       if (result?.error) {
@@ -45,6 +46,11 @@ export default function LoginPage() {
         }
         setError(result.error);
       } else if (result?.ok) {
+        // Si NextAuth devuelve una URL (callback), seguirla
+        if (result.url) {
+          router.push(result.url);
+          return;
+        }
         // Obtener la sesión para verificar el rol
         const response = await fetch("/api/auth/session");
         const session = await response.json();

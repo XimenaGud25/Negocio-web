@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { ExerciseImage } from "@/components/ExerciseImage";
 
 type Exercise = {
   id: string;
@@ -76,15 +77,35 @@ export default function ClientExercisesPage() {
       }
 
       const data = await res.json();
+      console.log('[DEBUG] Raw API response:', data);
+      console.log('[DEBUG] Data type:', typeof data, 'Is array:', Array.isArray(data));
+      
       // Handle different response formats
       if (data.exercises) {
+        console.log('[DEBUG] Found data.exercises, count:', data.exercises.length);
+        console.log('[DEBUG] First exercise structure:', data.exercises[0]);
+        if (data.exercises[0]) {
+          console.log('[DEBUG] First exercise images:', data.exercises[0].images);
+          console.log('[DEBUG] First exercise imageUrls:', data.exercises[0].imageUrls);
+          console.log('[DEBUG] First exercise originalImages:', data.exercises[0].originalImages);
+        }
         setExercises(data.exercises);
       } else if (Array.isArray(data)) {
+        console.log('[DEBUG] Data is direct array, count:', data.length);
+        console.log('[DEBUG] First exercise structure:', data[0]);
+        if (data[0]) {
+          console.log('[DEBUG] First exercise images:', data[0].images);
+          console.log('[DEBUG] First exercise imageUrls:', data[0].imageUrls);
+          console.log('[DEBUG] First exercise originalImages:', data[0].originalImages);
+        }
         setExercises(data);
       } else {
+        console.log('[DEBUG] No exercises found in response');
         setExercises([]);
       }
     } catch (err) {
+      console.error('[DEBUG] Error in fetchExercises:', err);
+      console.error('[DEBUG] Error details:', (err as Error).message);
       setError((err as Error).message);
       setExercises([]);
     } finally {
@@ -128,10 +149,22 @@ export default function ClientExercisesPage() {
   }, []);
 
   useEffect(() => {
+    console.log('[DEBUG] Component mounted, fetching data...');
     fetchExercises();
     fetchFavorites();
     fetchFiltersData();
   }, [fetchExercises, fetchFavorites, fetchFiltersData]);
+
+  // Debug effect to monitor exercises state changes
+  useEffect(() => {
+    console.log('[DEBUG] Exercises state updated:');
+    console.log('- Total exercises:', exercises.length);
+    console.log('- Exercises with images:', exercises.filter(ex => ex.images && ex.images.length > 0).length);
+    console.log('- Exercises with imageUrls:', exercises.filter(ex => (ex as any).imageUrls && (ex as any).imageUrls.length > 0).length);
+    if (exercises.length > 0) {
+      console.log('- Sample exercise:', exercises[0]);
+    }
+  }, [exercises]);
 
   // Verificar si un ejercicio es favorito
   const isFavorite = (exerciseId: string) => {
@@ -284,20 +317,34 @@ export default function ClientExercisesPage() {
               <div className="flex">
                 {/* Exercise Image */}
                 <div className="flex-shrink-0">
-                  {ex.images && ex.images.length > 0 ? (
-                    <img
-                      src={ex.images[0]}
-                      alt={ex.nameEs}
-                      className="w-32 h-32 object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                      }}
-                    />
-                  ) : (
-                    <div className="w-32 h-32 bg-gray-900 flex items-center justify-center text-xs text-gray-500">
-                      Sin imagen
-                    </div>
-                  )}
+                  {(() => {
+                    console.log(`[DEBUG] Exercise ${ex.id} image data:`);
+                    console.log('- images:', ex.images);
+                    console.log('- imageUrls:', (ex as any).imageUrls);
+                    console.log('- originalImages:', (ex as any).originalImages);
+                    
+                    const hasImages = ex.images && ex.images.length > 0;
+                    const hasImageUrls = (ex as any).imageUrls && (ex as any).imageUrls.length > 0;
+                    
+                    console.log('- hasImages:', hasImages);
+                    console.log('- hasImageUrls:', hasImageUrls);
+                    
+                    if (hasImages || hasImageUrls) {
+                      return (
+                        <ExerciseImage 
+                          exercise={ex as any} 
+                          className="w-32 h-32" 
+                          priority={true} 
+                        />
+                      );
+                    } else {
+                      return (
+                        <div className="w-32 h-32 bg-gray-900 flex items-center justify-center text-xs text-gray-500">
+                          Sin imagen
+                        </div>
+                      );
+                    }
+                  })()}
                 </div>
 
                 {/* Exercise Details */}

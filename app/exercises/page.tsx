@@ -1,5 +1,6 @@
 "use client";
 
+import { ExerciseImage } from "@/components/ExerciseImage";
 import React, { useState, useEffect } from "react";
 
 type Exercise = {
@@ -295,14 +296,7 @@ export default function ExercisesPage() {
 
               {/* Imagen del ejercicio */}
               {exercise.images && exercise.images.length > 0 ? (
-                <img 
-                  src={exercise.images[0]} 
-                  alt={exercise.nameEs}
-                  className="w-full h-48 object-cover rounded-md mb-4"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
-                />
++                <ExerciseImage exercise={exercise as any} className="w-full h-48 mb-4" priority={true} />
               ) : (
                 <div className="w-full h-48 bg-gray-900 rounded-md mb-4 flex items-center justify-center">
                   <span className="text-gray-500 text-sm">Sin imagen disponible</span>
