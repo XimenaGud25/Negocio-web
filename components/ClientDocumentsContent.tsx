@@ -157,12 +157,12 @@ export function ClientDocumentsContent({ userId }: ClientDocumentsContentProps) 
       <Tabs defaultValue="documents" className="w-full">
         <TabsList className="bg-[#0f0f0f] border border-gray-800">
           <TabsTrigger value="documents" className="data-[state=active]:bg-yellow-400 data-[state=active]:text-black">
-            <FileText className="w-4 h-4 mr-2" />
-            Documentos del Entrenador
+            <FileText className="w-4 h-4 mr-2 text-white" />
+            <span className="text-white">Documentos del Entrenador</span>
           </TabsTrigger>
           <TabsTrigger value="videos" className="data-[state=active]:bg-yellow-400 data-[state=active]:text-black">
-            <Video className="w-4 h-4 mr-2" />
-            Mis Videos
+            <Video className="w-4 h-4 mr-2 text-white" />
+            <span className="text-white">Mis Videos</span>
           </TabsTrigger>
         </TabsList>
 

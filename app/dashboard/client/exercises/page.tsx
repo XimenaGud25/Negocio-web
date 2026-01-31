@@ -69,7 +69,7 @@ export default function ClientExercisesPage() {
         params.append("difficulty", difficultyFilter);
       }
 
-      const url = `/api/exercises?${params.toString()}`;
+      const url = `https://exercises-gym.onrender.com/api/exercises?${params.toString()}`;
       const res = await fetch(url);
 
       if (!res.ok) {

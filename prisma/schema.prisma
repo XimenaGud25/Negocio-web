@@ -112,7 +112,9 @@ model Plan {
   id          String   @id @default(cuid())
   name        String   // "RETO FITNESS 2da EDICIÓN", "Plan Básico", etc.
   description String   @db.Text
-  durationDays    Int      // Duración en días (ej: 84 para 12 semanas)
+  durationDays    Int?     // Duración en días (ej: 84 para 12 semanas) - opcional para compatibilidad
+  durationWeeksMin Int     @default(4) // Duración mínima en semanas (ej: 3, 6, 9, 12)
+  durationWeeksMax Int?    // Duración máxima en semanas (ej: 6 para "3-6 semanas"), null si es fija
   price       Decimal  @db.Decimal(10, 2)
   features    String[] // Array de características incluidas
   isActive    Boolean  @default(true) // Para mostrar/ocultar en público

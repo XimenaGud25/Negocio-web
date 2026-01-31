@@ -6,16 +6,35 @@ import type { Session } from 'next-auth';
 
 async function fetchAdminData() {
   try {
-    const url = `${process.env.NEXTAUTH_URL ?? 'http://localhost:3000'}/api/admin/dashboard`;
-    console.log('[AdminPage] fetching admin dashboard from', url);
-    const res = await fetch(url, { cache: 'no-store' });
-    console.log('[AdminPage] admin dashboard response status', res.status);
-    if (!res.ok) return null;
+    const url = `${process.env.NEXTAUTH_URL ?? 'http://localhost:3000'}/api/admin/stats`;
+    console.log('[AdminPage] fetching admin stats from', url);
+    const res = await fetch(url, { 
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
+    console.log('[AdminPage] admin stats response status', res.status);
+    
+    if (!res.ok) {
+      console.error('[AdminPage] admin stats error:', res.status, res.statusText);
+      return null;
+    }
+    
     const json = await res.json();
-    console.log('[AdminPage] admin dashboard payload keys', Object.keys(json || {}));
-    return json;
+    console.log('[AdminPage] admin stats payload', json);
+    
+    // Transformar la respuesta para que coincida con el formato esperado
+    return {
+      summary: {
+        total: json.total,
+        active: json.active,
+        expiring: json.expiring,
+        expired: json.expired,
+      }
+    };
   } catch (e) {
-    console.log('[AdminPage] fetchAdminData error', e);
+    console.error('[AdminPage] fetchAdminData error', e);
     return null;
   }
 }
@@ -36,7 +55,7 @@ export default async function AdminDashboardPage() {
   }
 
   const data = await fetchAdminData();
-  console.log('[AdminPage] fetched data', { usersCount: data?.users?.length ?? 0 });
+  console.log('[AdminPage] fetched data', { totalUsers: data?.summary?.total ?? 0 });
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -51,7 +70,13 @@ export default async function AdminDashboardPage() {
         <MaxWidthWrapper className="py-12">
           <h2 className="text-2xl font-bold">Resumen</h2>
           {!data ? (
-            <p className="mt-4 text-gray-600">No se pudo cargar la información del dashboard.</p>
+            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-800">No se pudo cargar la información del dashboard.</p>
+              <p className="text-red-600 text-sm mt-2">
+                Esto puede ocurrir si tu sesión expiró. Por favor, 
+                <a href="/login" className="underline ml-1">inicia sesión nuevamente</a>.
+              </p>
+            </div>
           ) : (
             <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               <div className="p-4 border rounded">Total usuarios: {data.summary?.total ?? 0}</div>

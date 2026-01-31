@@ -8,7 +8,7 @@ export default withAuth(
 
     // Proteger rutas /admin/* - solo ADMIN
     if (path.startsWith("/admin") && token?.role !== "ADMIN") {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
+      return NextResponse.redirect(new URL("/dashboard/client", req.url));
     }
 
     // Proteger rutas /dashboard/* - requiere sesión (cualquier rol)

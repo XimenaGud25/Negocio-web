@@ -116,9 +116,6 @@ export function VideoList({ videos, userId, onVideoDeleted }: VideoListProps) {
                         <Calendar className="w-3 h-3" />
                         {formatDate(video.uploadedAt)}
                       </span>
-                      <Badge variant="outline" className="text-xs border-gray-700">
-                        {formatFileSize(video.fileSize)}
-                      </Badge>
                     </div>
                   </div>
                 </div>
@@ -128,7 +125,7 @@ export function VideoList({ videos, userId, onVideoDeleted }: VideoListProps) {
                     size="sm"
                     variant="outline"
                     onClick={() => handlePlayVideo(video)}
-                    className="border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black"
+                    className=" text-black hover:bg-yellow-400 hover:text-black"
                   >
                     <Play className="w-4 h-4 mr-1" />
                     Ver

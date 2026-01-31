@@ -8,11 +8,6 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   {
-    label: "Mi Perfil",
-    href: "/dashboard/client",
-    icon: User,
-  },
-  {
     label: "Ejercicios",
     href: "/dashboard/client/exercises",
     icon: Dumbbell,

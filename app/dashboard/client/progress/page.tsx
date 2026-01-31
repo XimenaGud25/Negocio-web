@@ -366,10 +366,10 @@ export default function ProgressPage() {
       {/* Charts & Table Tabs */}
       <Tabs defaultValue="charts" className="space-y-4">
         <TabsList className="bg-[#0f0f0f] border border-gray-800">
-          <TabsTrigger value="charts" className="data-[state=active]:bg-yellow-400 data-[state=active]:text-black">
+          <TabsTrigger value="charts" className="text-white data-[state=active]:bg-yellow-400 data-[state=active]:text-black">
             Gráficos
           </TabsTrigger>
-          <TabsTrigger value="history" className="data-[state=active]:bg-yellow-400 data-[state=active]:text-black">
+          <TabsTrigger value="history" className="text-white data-[state=active]:bg-yellow-400 data-[state=active]:text-black">
             Historial
           </TabsTrigger>
         </TabsList>
