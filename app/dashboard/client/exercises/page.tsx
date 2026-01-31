@@ -90,6 +90,15 @@ export default function ClientExercisesPage() {
           console.log('[DEBUG] First exercise originalImages:', data.exercises[0].originalImages);
         }
         setExercises(data.exercises);
+      } else if (data.data && Array.isArray(data.data)) {
+        console.log('[DEBUG] Found data.data, count:', data.data.length);
+        console.log('[DEBUG] First exercise structure:', data.data[0]);
+        if (data.data[0]) {
+          console.log('[DEBUG] First exercise images:', data.data[0].images);
+          console.log('[DEBUG] First exercise imageUrls:', data.data[0].imageUrls);
+          console.log('[DEBUG] First exercise originalImages:', data.data[0].originalImages);
+        }
+        setExercises(data.data);
       } else if (Array.isArray(data)) {
         console.log('[DEBUG] Data is direct array, count:', data.length);
         console.log('[DEBUG] First exercise structure:', data[0]);
