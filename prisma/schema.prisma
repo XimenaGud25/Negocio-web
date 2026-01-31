@@ -368,7 +368,8 @@ model UserVideo {
   
   // Datos del video
   fileName    String   // Nombre original del archivo
-  filePath    String   // Ruta del archivo en el servidor
+  filePath    String   // Ruta del archivo (URL de S3 o ruta local)
+  s3Key       String?  // Key del archivo en S3 (para poder eliminarlo)
   fileSize    Int      // Tamaño en bytes
   mimeType    String   // video/mp4, video/avi, etc.
   duration    Int?     // Duración en segundos (opcional)

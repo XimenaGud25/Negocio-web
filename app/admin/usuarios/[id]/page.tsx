@@ -1,11 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import DocumentViewer from "@/components/ui/document-viewer";
 import { UserVideosModal } from "../../../../components/UserVideosModal";
+import { BarChart3, Calendar, Dumbbell, Loader2, TrendingUp } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
+import { BarChart, Bar, LineChart, Line, CartesianGrid, XAxis, YAxis } from "recharts";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 
 interface Plan {
   id: string;
@@ -22,6 +30,29 @@ interface Document {
   createdAt: string;
 }
 
+type ProgressLog = {
+  id: string;
+  sets: number;
+  reps: number;
+  weight: number | null;
+  duration: number | null;
+  notes: string | null;
+  logDate: string;
+};
+
+type FavoriteWithProgress = {
+  id: string;
+  exerciseApiId: string;
+  exerciseName: string;
+  exerciseNameEs: string | null;
+  bodyPart: string;
+  bodyPartEs: string | null;
+  target: string;
+  targetEs: string | null;
+  gifUrl: string | null;
+  progressLogs: ProgressLog[];
+};
+
 interface User {
   id: string;
   name: string;
@@ -35,7 +66,23 @@ interface User {
     startDate: string;
     endDate: string;
   }>;
+  favoriteExercises?: FavoriteWithProgress[];
 }
+
+const chartConfig: ChartConfig = {
+  weight: {
+    label: "Peso (kg)",
+    color: "#facc15",
+  },
+  volume: {
+    label: "Volumen",
+    color: "#22c55e",
+  },
+  workouts: {
+    label: "Entrenamientos",
+    color: "#3b82f6",
+  },
+};
 
 export default function EditarUsuarioPage() {
   const router = useRouter();
@@ -68,6 +115,8 @@ export default function EditarUsuarioPage() {
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [selectedExercise, setSelectedExercise] = useState<string>("all");
+  const [dateRange, setDateRange] = useState<string>("30");
 
   useEffect(() => {
     fetchUser();
@@ -82,7 +131,7 @@ export default function EditarUsuarioPage() {
 
   const fetchUser = async () => {
     try {
-      const res = await fetch(`/api/admin/users/${userId}`);
+      const res = await fetch(`/api/admin/users/${userId}?include=enrollments,favorites,progress`);
       if (res.ok) {
         const data = await res.json();
         setUser(data);
@@ -287,10 +336,138 @@ export default function EditarUsuarioPage() {
     }
   };
 
+  // Filtrar por fecha
+  const filterByDate = useCallback((logs: ProgressLog[]) => {
+    const days = parseInt(dateRange);
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    return logs.filter((log) => new Date(log.logDate) >= cutoff);
+  }, [dateRange]);
+
+  // Datos para el gráfico de progreso de peso
+  const weightProgressData = useMemo(() => {
+    if (!user?.favoriteExercises) return [];
+
+    const exercise = selectedExercise === "all" 
+      ? null 
+      : user.favoriteExercises.find(f => f.id === selectedExercise);
+
+    if (exercise) {
+      const logs = filterByDate(exercise.progressLogs)
+        .filter(log => log.weight)
+        .sort((a, b) => new Date(a.logDate).getTime() - new Date(b.logDate).getTime());
+
+      return logs.map(log => ({
+        date: new Date(log.logDate).toLocaleDateString("es", { day: "2-digit", month: "short" }),
+        weight: log.weight,
+        volume: log.sets * log.reps * (log.weight || 1),
+      }));
+    }
+
+    // Agregado de todos los ejercicios - promedio de peso por día
+    const allLogs: { date: string; weight: number; count: number }[] = [];
+    user?.favoriteExercises?.forEach(fav => {
+      filterByDate(fav.progressLogs).forEach(log => {
+        if (log.weight) {
+          const dateStr = new Date(log.logDate).toLocaleDateString("es", { day: "2-digit", month: "short" });
+          const existing = allLogs.find(l => l.date === dateStr);
+          if (existing) {
+            existing.weight += log.weight;
+            existing.count += 1;
+          } else {
+            allLogs.push({ date: dateStr, weight: log.weight, count: 1 });
+          }
+        }
+      });
+    });
+
+    return allLogs.map(l => ({
+      date: l.date,
+      weight: Math.round((l.weight / l.count) * 10) / 10,
+      volume: 0,
+    })).sort((a, b) => {
+      const [dayA] = a.date.split(" ");
+      const [dayB] = b.date.split(" ");
+      return parseInt(dayA) - parseInt(dayB);
+    });
+  }, [user, selectedExercise, filterByDate]);
+
+  // Datos para el gráfico de entrenamientos por semana
+  const workoutsPerWeek = useMemo(() => {
+    if (!user?.favoriteExercises) return [];
+
+    const weeks: Record<string, number> = {};
+    
+    user.favoriteExercises.forEach(fav => {
+      filterByDate(fav.progressLogs).forEach(log => {
+        const date = new Date(log.logDate);
+        const weekStart = new Date(date);
+        weekStart.setDate(date.getDate() - date.getDay());
+        const weekKey = weekStart.toLocaleDateString("es", { day: "2-digit", month: "short" });
+        weeks[weekKey] = (weeks[weekKey] || 0) + 1;
+      });
+    });
+
+    return Object.entries(weeks).map(([week, count]) => ({
+      week,
+      workouts: count,
+    }));
+  }, [user, filterByDate]);
+
+  // Estadísticas generales
+  const stats = useMemo(() => {
+    if (!user?.favoriteExercises) {
+      return { totalWorkouts: 0, totalVolume: 0, maxWeight: 0, totalSets: 0 };
+    }
+
+    let totalWorkouts = 0;
+    let totalVolume = 0;
+    let maxWeight = 0;
+    let totalSets = 0;
+
+    user.favoriteExercises.forEach(fav => {
+      const logs = filterByDate(fav.progressLogs);
+      totalWorkouts += logs.length;
+      logs.forEach(log => {
+        totalSets += log.sets;
+        const volume = log.sets * log.reps * (log.weight || 1);
+        totalVolume += volume;
+        if (log.weight && log.weight > maxWeight) {
+          maxWeight = log.weight;
+        }
+      });
+    });
+
+    return { totalWorkouts, totalVolume, maxWeight, totalSets };
+  }, [user, filterByDate]);
+
+  // Historial de todos los logs
+  const allLogs = useMemo(() => {
+    if (!user?.favoriteExercises) return [];
+
+    const logs: (ProgressLog & { exerciseName: string })[] = [];
+    
+    user.favoriteExercises.forEach(fav => {
+      const filteredLogs = selectedExercise === "all" || fav.id === selectedExercise
+        ? filterByDate(fav.progressLogs)
+        : [];
+      
+      filteredLogs.forEach(log => {
+        logs.push({
+          ...log,
+          exerciseName: fav.exerciseNameEs || fav.exerciseName,
+        });
+      });
+    });
+
+    return logs.sort((a, b) => new Date(b.logDate).getTime() - new Date(a.logDate).getTime());
+  }, [user, selectedExercise, filterByDate]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p className="text-gray-600">Cargando...</p>
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <p className="ml-2 text-gray-600">Cargando datos del usuario...</p>
       </div>
     );
   }
@@ -581,6 +758,251 @@ export default function EditarUsuarioPage() {
               </button>
             )}
           </div>
+            </>
+        )}
+      </div>
+
+      {/* Progress Section (placeholder) */}
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <BarChart3 className="h-6 w-6 text-green-600" />
+            Progreso del Usuario
+          </h2>
+          <p className="text-gray-600 mt-1">
+            Visualiza el progreso en los ejercicios favoritos
+          </p>
+        </div>
+
+        {!user.favoriteExercises || user.favoriteExercises.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Sin datos de progreso
+              </h3>
+              <p className="text-gray-600">
+                El usuario aún no ha registrado progreso en ejercicios
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            {/* Filters */}
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex items-center gap-2">
+                    <Dumbbell className="h-4 w-4 text-gray-500" />
+                    <Select value={selectedExercise} onValueChange={setSelectedExercise}>
+                      <SelectTrigger className="w-[250px]">
+                        <SelectValue placeholder="Ejercicio" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">
+                          Todos los ejercicios
+                        </SelectItem>
+                        {user.favoriteExercises.map((fav) => (
+                          <SelectItem key={fav.id} value={fav.id}>
+                            {fav.exerciseNameEs || fav.exerciseName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-gray-500" />
+                    <Select value={dateRange} onValueChange={setDateRange}>
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Período" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="7">Últimos 7 días</SelectItem>
+                        <SelectItem value="30">Últimos 30 días</SelectItem>
+                        <SelectItem value="90">Últimos 3 meses</SelectItem>
+                        <SelectItem value="365">Último año</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">
+                    Entrenamientos
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalWorkouts}</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">
+                    Series Totales
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.totalSets}</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">
+                    Volumen Total
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {Math.round(stats.totalVolume).toLocaleString()}
+                  </div>
+                  <p className="text-xs text-gray-500">kg × reps</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-600">
+                    Peso Máximo
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.maxWeight} kg</div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Charts & Table Tabs */}
+            <Tabs defaultValue="charts" className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="charts">Gráficos</TabsTrigger>
+                <TabsTrigger value="history">Historial</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="charts" className="space-y-4">
+                {/* Weight Progress Chart */}
+                {weightProgressData.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Progreso de Peso</CardTitle>
+                      <CardDescription>
+                        Evolución del peso levantado por sesión
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                        <LineChart data={weightProgressData}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis dataKey="date" fontSize={12} />
+                          <YAxis fontSize={12} />
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <Line
+                            type="monotone"
+                            dataKey="weight"
+                            stroke="var(--color-weight)"
+                            strokeWidth={2}
+                            dot={{ fill: "var(--color-weight)" }}
+                          />
+                        </LineChart>
+                      </ChartContainer>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Workouts per Week Chart */}
+                {workoutsPerWeek.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Entrenamientos por Semana</CardTitle>
+                      <CardDescription>
+                        Frecuencia de entrenamientos
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                        <BarChart data={workoutsPerWeek}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis dataKey="week" fontSize={12} />
+                          <YAxis fontSize={12} />
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <Bar
+                            dataKey="workouts"
+                            fill="var(--color-workouts)"
+                            radius={[4, 4, 0, 0]}
+                          />
+                        </BarChart>
+                      </ChartContainer>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+
+              <TabsContent value="history">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Historial de Entrenamientos</CardTitle>
+                    <CardDescription>
+                      Registro detallado de ejercicios
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {allLogs.length === 0 ? (
+                      <p className="text-gray-500 text-center py-8">
+                        No hay registros en este período
+                      </p>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Fecha</TableHead>
+                            <TableHead>Ejercicio</TableHead>
+                            <TableHead className="text-center">Series</TableHead>
+                            <TableHead className="text-center">Reps</TableHead>
+                            <TableHead className="text-center">Peso</TableHead>
+                            <TableHead>Notas</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {allLogs.slice(0, 20).map((log) => (
+                            <TableRow key={log.id}>
+                              <TableCell>
+                                {new Date(log.logDate).toLocaleDateString("es", {
+                                  day: "2-digit",
+                                  month: "short",
+                                  year: "numeric",
+                                })}
+                              </TableCell>
+                              <TableCell className="font-medium">
+                                {log.exerciseName}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge variant="outline">{log.sets}</Badge>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge variant="outline">{log.reps}</Badge>
+                              </TableCell>
+                              <TableCell className="text-center text-yellow-600 font-medium">
+                                {log.weight ? `${log.weight} kg` : "-"}
+                              </TableCell>
+                              <TableCell className="text-gray-600 max-w-[200px] truncate">
+                                {log.notes || "-"}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
           </>
         )}
       </div>

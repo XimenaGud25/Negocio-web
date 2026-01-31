@@ -59,6 +59,15 @@ const ALLOWED_IMAGE_TYPES = [
   'image/gif',
 ];
 
+// Tipos de archivo permitidos para videos
+const ALLOWED_VIDEO_TYPES = [
+  'video/mp4',
+  'video/avi',
+  'video/mov',
+  'video/quicktime',
+  'video/x-msvideo',
+];
+
 export interface PresignedUrlResponse {
   uploadUrl: string;
   fileUrl: string;
@@ -80,9 +89,14 @@ export class S3Service {
     folder: string = 'exercises',
   ): Promise<PresignedUrlResponse> {
     // Validar tipo de archivo según la carpeta
-    const allowedTypes = folder === 'documents' 
-      ? ALLOWED_DOCUMENT_TYPES 
-      : ALLOWED_IMAGE_TYPES;
+    let allowedTypes: string[];
+    if (folder === 'documents' || folder.startsWith('documents/')) {
+      allowedTypes = ALLOWED_DOCUMENT_TYPES;
+    } else if (folder === 'videos' || folder.startsWith('videos/')) {
+      allowedTypes = ALLOWED_VIDEO_TYPES;
+    } else {
+      allowedTypes = ALLOWED_IMAGE_TYPES;
+    }
 
     if (!allowedTypes.includes(contentType)) {
       throw new Error(
@@ -154,9 +168,14 @@ export class S3Service {
     console.log(`[S3Service] Buffer size: ${buffer.length} bytes`);
     
     // Validar tipo de archivo según la carpeta
-    const allowedTypes = folder === 'documents' 
-      ? ALLOWED_DOCUMENT_TYPES 
-      : ALLOWED_IMAGE_TYPES;
+    let allowedTypes: string[];
+    if (folder === 'documents' || folder.startsWith('documents/')) {
+      allowedTypes = ALLOWED_DOCUMENT_TYPES;
+    } else if (folder === 'videos' || folder.startsWith('videos/')) {
+      allowedTypes = ALLOWED_VIDEO_TYPES;
+    } else {
+      allowedTypes = ALLOWED_IMAGE_TYPES;
+    }
 
     if (!allowedTypes.includes(contentType)) {
       throw new Error(
@@ -181,8 +200,25 @@ export class S3Service {
 
     try {
       console.log('[S3Service] Ejecutando PutObjectCommand...');
-      await s3Client.send(command);
-      console.log('[S3Service] Upload exitoso a S3');
+      const start = Date.now();
+      const controller = new AbortController();
+      const timeoutMs = 2 * 60 * 1000; // 2 minutes
+      const t = setTimeout(() => {
+        try {
+          controller.abort();
+        } catch (e) {
+          // ignore
+        }
+      }, timeoutMs);
+
+      try {
+        await s3Client.send(command, { abortSignal: controller.signal as any });
+      } finally {
+        clearTimeout(t);
+      }
+
+      const duration = Date.now() - start;
+      console.log(`[S3Service] Upload exitoso a S3 (took ${duration}ms)`);
 
       const fileUrl = `https://${S3_BUCKET}.s3.${S3_REGION}.amazonaws.com/${key}`;
       console.log(`[S3Service] URL del archivo: ${fileUrl}`);
@@ -200,9 +236,19 @@ export class S3Service {
           S3_REGION = correctRegion;
           s3Client = createS3Client(S3_REGION);
           
-          // Reintentar el comando
-          await s3Client.send(command);
-          console.log('[S3Service] Upload exitoso a S3 (después de retry)');
+          // Reintentar el comando (con timeout)
+          const controller2 = new AbortController();
+          const t2 = setTimeout(() => {
+            try { controller2.abort(); } catch (e) {}
+          }, 2 * 60 * 1000);
+          try {
+            const start2 = Date.now();
+            await s3Client.send(command, { abortSignal: controller2.signal as any });
+            const duration2 = Date.now() - start2;
+            console.log(`[S3Service] Upload exitoso a S3 (después de retry, took ${duration2}ms)`);
+          } finally {
+            clearTimeout(t2);
+          }
           
           const fileUrl = `https://${S3_BUCKET}.s3.${S3_REGION}.amazonaws.com/${key}`;
           console.log(`[S3Service] URL del archivo: ${fileUrl}`);

@@ -53,14 +53,50 @@ export function VideoUploader({ userId, onVideoUploaded }: VideoUploaderProps) {
       formData.append("title", title);
       formData.append("description", description);
 
-      const response = await fetch(`/api/users/${userId}/videos`, {
-        method: "POST",
-        body: formData,
+      console.log("[VideoUploader] Starting upload", {
+        userId,
+        filename: selectedFile.name,
+        size: selectedFile.size,
+        type: selectedFile.type,
+        title,
+        description,
       });
 
+      const controller = new AbortController();
+      const timeout = setTimeout(() => {
+        controller.abort();
+      }, 2 * 60 * 1000); // 2 minutes timeout
+
+      let response: Response;
+      try {
+        response = await fetch(`/api/users/${userId}/videos`, {
+          method: "POST",
+          body: formData,
+          signal: controller.signal,
+        });
+      } catch (err) {
+        if ((err as any).name === 'AbortError') {
+          console.error('[VideoUploader] Upload aborted by timeout');
+          throw new Error('Timeout subiendo el video (2 minutos)');
+        }
+        throw err;
+      } finally {
+        clearTimeout(timeout);
+      }
+
+      console.log('[VideoUploader] Upload response status', response.status);
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Error al subir video");
+        const text = await response.text();
+        let parsed: any = null;
+        try {
+          parsed = JSON.parse(text);
+        } catch (e) {
+          // not JSON
+        }
+        console.error('[VideoUploader] Upload failed response body:', parsed ?? text);
+        const message = parsed?.error || parsed?.message || text || 'Error al subir video';
+        throw new Error(message);
       }
 
       // Resetear formulario
@@ -78,7 +114,7 @@ export function VideoUploader({ userId, onVideoUploaded }: VideoUploaderProps) {
       alert("Video subido exitosamente");
 
     } catch (error) {
-      console.error("Error uploading video:", error);
+      console.error("[VideoUploader] Error uploading video:", error);
       alert(error instanceof Error ? error.message : "Error al subir video");
     } finally {
       setIsUploading(false);

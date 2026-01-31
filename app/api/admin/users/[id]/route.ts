@@ -17,19 +17,37 @@ export async function GET(
     }
 
     const { id } = await params;
+    const { searchParams } = new URL(request.url);
+    const include = searchParams.get("include")?.split(",") || [];
+
+    // Preparar includes dinámicamente
+    const includeOptions: any = {
+      enrollments: {
+        include: {
+          plan: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      },
+    };
+
+    // Si se solicita favoritos y progreso
+    if (include.includes("favorites") || include.includes("progress")) {
+      includeOptions.favoriteExercises = {
+        include: {
+          progressLogs: include.includes("progress") ? {
+            orderBy: {
+              logDate: "desc",
+            },
+          } : false,
+        },
+      };
+    }
 
     const user = await prisma.user.findUnique({
       where: { id },
-      include: {
-        enrollments: {
-          include: {
-            plan: true,
-          },
-          orderBy: {
-            createdAt: "desc",
-          },
-        },
-      },
+      include: includeOptions,
     });
 
     if (!user) {

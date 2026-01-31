@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
+import { S3Service } from "@/lib/s3";
 
 export async function POST(
   request: NextRequest,
@@ -48,34 +47,57 @@ export async function POST(
       }, { status: 400 });
     }
 
-    // Crear directorio de videos si no existe
-    const uploadsDir = path.join(process.cwd(), "public", "uploads", "videos", id);
-    await mkdir(uploadsDir, { recursive: true });
-
-    // Generar nombre único para el archivo
-    const timestamp = Date.now();
-    const fileExtension = path.extname(videoFile.name);
-    const fileName = `video_${timestamp}${fileExtension}`;
-    const filePath = path.join(uploadsDir, fileName);
-    const relativePath = `/uploads/videos/${id}/${fileName}`;
-
-    // Guardar archivo
+    // Subir a S3
     const bytes = await videoFile.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
+    
+    const { fileUrl, key } = await S3Service.uploadDirect(
+      buffer,
+      videoFile.name,
+      videoFile.type,
+      `videos/${id}` // Carpeta específica para el usuario
+    );
 
     // Guardar en base de datos
-    const userVideo = await prisma.userVideo.create({
-      data: {
-        userId: id,
-        fileName: videoFile.name,
-        filePath: relativePath,
-        fileSize: videoFile.size,
-        mimeType: videoFile.type,
-        title: title || videoFile.name,
-        description: description || null,
-      },
-    });
+    let userVideo: any;
+    try {
+      userVideo = await prisma.userVideo.create({
+        data: {
+          userId: id,
+          fileName: videoFile.name,
+          filePath: fileUrl, // URL de S3
+          s3Key: key, // Guardar la key de S3 para poder eliminar después
+          fileSize: videoFile.size,
+          mimeType: videoFile.type,
+          title: title || videoFile.name,
+          description: description || null,
+        },
+      });
+    } catch (err: any) {
+      console.error("Error creating userVideo (first attempt):", err);
+      // If the DB doesn't have the s3Key column yet (Prisma P2022), retry without s3Key
+      if (err?.code === 'P2022' || (err?.message && err.message.includes('s3Key'))) {
+        try {
+          console.log('[videos.route] Retrying userVideo.create without s3Key due to missing column');
+          userVideo = await prisma.userVideo.create({
+            data: {
+              userId: id,
+              fileName: videoFile.name,
+              filePath: fileUrl,
+              fileSize: videoFile.size,
+              mimeType: videoFile.type,
+              title: title || videoFile.name,
+              description: description || null,
+            },
+          });
+        } catch (err2) {
+          console.error('Error creating userVideo (retry without s3Key):', err2);
+          throw err2;
+        }
+      } else {
+        throw err;
+      }
+    }
 
     return NextResponse.json({
       message: "Video subido exitosamente",
@@ -184,13 +206,13 @@ export async function DELETE(
       where: { id: videoId },
     });
 
-    // Intentar eliminar archivo físico (opcional, puede fallar sin problemas)
-    try {
-      const fs = require('fs').promises;
-      const fullPath = path.join(process.cwd(), "public", video.filePath);
-      await fs.unlink(fullPath);
-    } catch (error) {
-      console.warn("Could not delete video file:", error);
+    // Eliminar archivo de S3 si existe la key
+    if (video.s3Key) {
+      try {
+        await S3Service.deleteFile(video.s3Key);
+      } catch (error) {
+        console.warn("Could not delete video file from S3:", error);
+      }
     }
 
     return NextResponse.json({
