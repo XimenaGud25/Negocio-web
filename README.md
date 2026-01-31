@@ -48,7 +48,35 @@ Create sample data for testing:
 pnpm prisma db seed
 ```
 
-### 3. Run Development Server
+### 3. AWS S3 Setup (for Document Storage)
+
+This project uses AWS S3 for storing client documents (diets, routines, reports).
+
+#### Quick Setup
+
+1. Create an AWS S3 bucket
+2. Configure CORS and IAM user
+3. Add credentials to `.env.local`:
+
+```env
+S3_BUCKET=gym-exercises-images
+AWS_S3_REGION=us-east-1
+AWS_ACCESS_KEY_ID=your-access-key
+AWS_SECRET_ACCESS_KEY=your-secret-key
+S3_PRESIGNED_URL_EXPIRES=3600
+```
+
+#### Complete Guide
+
+See **[S3_DOCUMENTATION_INDEX.md](./S3_DOCUMENTATION_INDEX.md)** for:
+- Full AWS S3 setup guide
+- API documentation
+- Integration examples
+- Migration scripts
+
+**Quick Start:** [README_S3_QUICKSTART.md](./README_S3_QUICKSTART.md)
+
+### 4. Run Development Server
 
 ```bash
 pnpm dev

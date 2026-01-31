@@ -1,25 +1,246 @@
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import { 
+  S3Client, 
+  GetObjectCommand, 
+  PutObjectCommand,
+  DeleteObjectCommand 
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { v4 as uuidv4 } from "uuid";
 
-// Configuración del cliente S3
-const s3Client = new S3Client({
-  region: process.env.AWS_S3_REGION || "us-east-1",
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-  },
-});
-
+// Configuración del cliente S3 (creable dinámicamente)
+let S3_REGION = process.env.AWS_S3_REGION || process.env.AWS_REGION || "us-east-1";
 const S3_BUCKET = process.env.S3_BUCKET;
+const S3_PRESIGNED_URL_EXPIRES = parseInt(process.env.S3_PRESIGNED_URL_EXPIRES || "3600", 10);
 
 if (!S3_BUCKET) {
   throw new Error("AWS_S3_S3_BUCKET environment variable is not set");
+}
+
+function createS3Client(region: string) {
+  return new S3Client({
+    region,
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    },
+  });
+}
+
+let s3Client = createS3Client(S3_REGION);
+
+function extractRegionFromEndpoint(endpoint: string | undefined): string | null {
+  if (!endpoint) return null;
+  try {
+    // endpoint examples:
+    // bucket.s3.us-east-2.amazonaws.com
+    // bucket.s3-us-west-2.amazonaws.com
+    const m = endpoint.match(/\.s3[.-]([a-z0-9-]+)\.amazonaws\.com$/);
+    if (m && m[1]) return m[1];
+  } catch (e) {
+    // ignore
+  }
+  return null;
+}
+
+// Tipos de archivo permitidos para documentos
+const ALLOWED_DOCUMENT_TYPES = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+];
+
+// Tipos de archivo permitidos para imágenes de ejercicios
+const ALLOWED_IMAGE_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+];
+
+export interface PresignedUrlResponse {
+  uploadUrl: string;
+  fileUrl: string;
+  key: string;
+  expiresIn: number;
 }
 
 /**
  * Servicio para manejar operaciones de AWS S3
  */
 export class S3Service {
+  
+  /**
+   * Genera una URL pre-firmada para subir un archivo a S3
+   */
+  static async getPresignedUploadUrl(
+    filename: string,
+    contentType: string,
+    folder: string = 'exercises',
+  ): Promise<PresignedUrlResponse> {
+    // Validar tipo de archivo según la carpeta
+    const allowedTypes = folder === 'documents' 
+      ? ALLOWED_DOCUMENT_TYPES 
+      : ALLOWED_IMAGE_TYPES;
+
+    if (!allowedTypes.includes(contentType)) {
+      throw new Error(
+        `Tipo de archivo no permitido. Tipos permitidos: ${allowedTypes.join(', ')}`
+      );
+    }
+
+    // Generar nombre único para el archivo
+    const extension = filename.split('.').pop() || 'jpg';
+    const uniqueFilename = `${uuidv4()}.${extension}`;
+    const key = `${folder}/${uniqueFilename}`;
+
+    const command = new PutObjectCommand({
+      Bucket: S3_BUCKET,
+      Key: key,
+      ContentType: contentType,
+    });
+
+    try {
+      const uploadUrl = await getSignedUrl(s3Client, command, {
+        expiresIn: S3_PRESIGNED_URL_EXPIRES,
+      });
+
+      const fileUrl = `https://${S3_BUCKET}.s3.${S3_REGION}.amazonaws.com/${key}`;
+
+      return {
+        uploadUrl,
+        fileUrl,
+        key,
+        expiresIn: S3_PRESIGNED_URL_EXPIRES,
+      };
+    } catch (error: any) {
+      // Si es PermanentRedirect, extraer región y reintentar
+      if (error.Code === 'PermanentRedirect' && error.Endpoint) {
+        const correctRegion = extractRegionFromEndpoint(error.Endpoint);
+        if (correctRegion && correctRegion !== S3_REGION) {
+          console.log(`[S3Service] PermanentRedirect en presigned. Región correcta: ${correctRegion}`);
+          S3_REGION = correctRegion;
+          s3Client = createS3Client(S3_REGION);
+          
+          const uploadUrl = await getSignedUrl(s3Client, command, {
+            expiresIn: S3_PRESIGNED_URL_EXPIRES,
+          });
+
+          const fileUrl = `https://${S3_BUCKET}.s3.${S3_REGION}.amazonaws.com/${key}`;
+
+          return {
+            uploadUrl,
+            fileUrl,
+            key,
+            expiresIn: S3_PRESIGNED_URL_EXPIRES,
+          };
+        }
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Sube un archivo directamente a S3 (evita CORS)
+   */
+  static async uploadDirect(
+    buffer: Buffer,
+    filename: string,
+    contentType: string,
+    folder: string = 'exercises'
+  ): Promise<{ fileUrl: string; key: string }> {
+    console.log(`[S3Service] Iniciando upload directo: filename=${filename}, contentType=${contentType}, folder=${folder}`);
+    console.log(`[S3Service] Buffer size: ${buffer.length} bytes`);
+    
+    // Validar tipo de archivo según la carpeta
+    const allowedTypes = folder === 'documents' 
+      ? ALLOWED_DOCUMENT_TYPES 
+      : ALLOWED_IMAGE_TYPES;
+
+    if (!allowedTypes.includes(contentType)) {
+      throw new Error(
+        `Tipo de archivo no permitido: ${contentType}. Tipos permitidos: ${allowedTypes.join(', ')}`
+      );
+    }
+
+    // Generar nombre único para el archivo
+    const extension = filename.split('.').pop() || 'jpg';
+    const uniqueFilename = `${uuidv4()}.${extension}`;
+    const key = `${folder}/${uniqueFilename}`;
+
+    console.log(`[S3Service] Key generada: ${key}`);
+    console.log(`[S3Service] Bucket: ${S3_BUCKET}, Region: ${S3_REGION}`);
+
+    const command = new PutObjectCommand({
+      Bucket: S3_BUCKET,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+    });
+
+    try {
+      console.log('[S3Service] Ejecutando PutObjectCommand...');
+      await s3Client.send(command);
+      console.log('[S3Service] Upload exitoso a S3');
+
+      const fileUrl = `https://${S3_BUCKET}.s3.${S3_REGION}.amazonaws.com/${key}`;
+      console.log(`[S3Service] URL del archivo: ${fileUrl}`);
+      
+      return { fileUrl, key };
+    } catch (error: any) {
+      // Si es PermanentRedirect, extraer la región correcta y reintentar
+      if (error.Code === 'PermanentRedirect' && error.Endpoint) {
+        const correctRegion = extractRegionFromEndpoint(error.Endpoint);
+        if (correctRegion && correctRegion !== S3_REGION) {
+          console.log(`[S3Service] PermanentRedirect detectado. Región correcta: ${correctRegion}`);
+          console.log(`[S3Service] Reintentando con región ${correctRegion}...`);
+          
+          // Actualizar región global y recrear cliente
+          S3_REGION = correctRegion;
+          s3Client = createS3Client(S3_REGION);
+          
+          // Reintentar el comando
+          await s3Client.send(command);
+          console.log('[S3Service] Upload exitoso a S3 (después de retry)');
+          
+          const fileUrl = `https://${S3_BUCKET}.s3.${S3_REGION}.amazonaws.com/${key}`;
+          console.log(`[S3Service] URL del archivo: ${fileUrl}`);
+          
+          return { fileUrl, key };
+        }
+      }
+      
+      console.error(`[S3Service] Error en S3 upload:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Elimina un archivo de S3
+   */
+  static async deleteFile(key: string): Promise<void> {
+    const command = new DeleteObjectCommand({
+      Bucket: S3_BUCKET,
+      Key: key,
+    });
+
+    await s3Client.send(command);
+  }
+
+  /**
+   * Genera múltiples URLs pre-firmadas para subida
+   */
+  static async getMultiplePresignedUrls(
+    files: Array<{ filename: string; contentType: string }>,
+    folder: string = 'exercises',
+  ): Promise<PresignedUrlResponse[]> {
+    return Promise.all(
+      files.map((file) =>
+        this.getPresignedUploadUrl(file.filename, file.contentType, folder)
+      )
+    );
+  }
   
   /**
    * Obtiene una URL de descarga pre-firmada para una imagen en S3
@@ -89,7 +310,7 @@ export class S3Service {
    * @param keyOrUrl - Key de S3 o URL completa
    * @returns La key extraída o null si no es válida
    */
-  private static extractKeyFromUrl(keyOrUrl: string): string | null {
+  static extractKeyFromUrl(keyOrUrl: string): string | null {
     try {
       // Si parece ser una URL completa
       if (keyOrUrl.startsWith('http://') || keyOrUrl.startsWith('https://')) {

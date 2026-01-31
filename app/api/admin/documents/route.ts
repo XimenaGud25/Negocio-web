@@ -2,20 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
-import { Prisma, DocumentType } from "@prisma/client";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
+import { DocumentType } from "@prisma/client";
+import { S3Service } from "@/lib/s3";
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("[POST /api/admin/documents] Starting upload...");
-    try {
-      console.log('[POST /api/admin/documents] request url:', request.url);
-      console.log('[POST /api/admin/documents] request method:', request.method);
-      console.log('[POST /api/admin/documents] request headers:', Object.fromEntries(request.headers.entries()));
-    } catch (e) {
-      console.log('[POST /api/admin/documents] Could not read request details', e);
-    }
+    console.log("[POST /api/admin/documents] Starting S3 upload...");
+    
     const session = await getServerSession(authOptions);
     if (!session || session.user.role !== "ADMIN") {
       console.log("[POST /api/admin/documents] Unauthorized");
@@ -62,21 +55,16 @@ export async function POST(request: NextRequest) {
       const bytes = await dietFile.arrayBuffer();
       const buffer = Buffer.from(bytes);
 
-      // Crear directorio si no existe
-      const uploadsDir = path.join(process.cwd(), "public", "uploads", "documents");
-      await mkdir(uploadsDir, { recursive: true });
-
-      // Generar nombre único para el archivo
-      const timestamp = Date.now();
-      const filename = `diet_${enrollmentId}_${timestamp}.pdf`;
-      const filepath = path.join(uploadsDir, filename);
-
-      // Guardar archivo
-      await writeFile(filepath, buffer);
-      console.log("[POST /api/admin/documents] Diet file saved to disk:", filepath);
+      // Subir a S3
+      const { fileUrl, key } = await S3Service.uploadDirect(
+        buffer,
+        dietFile.name,
+        dietFile.type,
+        'documents'
+      );
+      console.log("[POST /api/admin/documents] Diet file uploaded to S3:", key);
 
       // Guardar en BD: actualizar si existe registro del mismo tipo para esta inscripción
-      const url = `/uploads/documents/${filename}`;
       const existingDiet = await prisma.document.findFirst({ 
         where: { enrollmentId, type: DocumentType.DIET } 
       });
@@ -84,14 +72,19 @@ export async function POST(request: NextRequest) {
       const document = existingDiet
         ? await prisma.document.update({
             where: { id: existingDiet.id },
-            data: { filename: dietFile.name, url, fileSize: dietFile.size, updatedAt: new Date() },
+            data: { 
+              filename: dietFile.name, 
+              url: fileUrl, 
+              fileSize: dietFile.size, 
+              updatedAt: new Date() 
+            },
           })
         : await prisma.document.create({
             data: {
               enrollmentId,
               type: DocumentType.DIET,
               filename: dietFile.name,
-              url,
+              url: fileUrl,
               fileSize: dietFile.size,
             },
           });
@@ -106,17 +99,15 @@ export async function POST(request: NextRequest) {
       const bytes = await routineFile.arrayBuffer();
       const buffer = Buffer.from(bytes);
 
-      const uploadsDir = path.join(process.cwd(), "public", "uploads", "documents");
-      await mkdir(uploadsDir, { recursive: true });
+      // Subir a S3
+      const { fileUrl, key } = await S3Service.uploadDirect(
+        buffer,
+        routineFile.name,
+        routineFile.type,
+        'documents'
+      );
+      console.log("[POST /api/admin/documents] Routine file uploaded to S3:", key);
 
-      const timestamp = Date.now();
-      const filename = `routine_${enrollmentId}_${timestamp}.pdf`;
-      const filepath = path.join(uploadsDir, filename);
-
-      await writeFile(filepath, buffer);
-      console.log("[POST /api/admin/documents] Routine file saved to disk:", filepath);
-
-      const url = `/uploads/documents/${filename}`;
       const existingRoutine = await prisma.document.findFirst({ 
         where: { enrollmentId, type: DocumentType.ROUTINE } 
       });
@@ -124,14 +115,19 @@ export async function POST(request: NextRequest) {
       const document = existingRoutine
         ? await prisma.document.update({
             where: { id: existingRoutine.id },
-            data: { filename: routineFile.name, url, fileSize: routineFile.size, updatedAt: new Date() },
+            data: { 
+              filename: routineFile.name, 
+              url: fileUrl, 
+              fileSize: routineFile.size, 
+              updatedAt: new Date() 
+            },
           })
         : await prisma.document.create({
             data: {
               enrollmentId,
               type: DocumentType.ROUTINE,
               filename: routineFile.name,
-              url,
+              url: fileUrl,
               fileSize: routineFile.size,
             },
           });
@@ -146,18 +142,15 @@ export async function POST(request: NextRequest) {
       const bytes = await reportFile.arrayBuffer();
       const buffer = Buffer.from(bytes);
 
-      const uploadsDir = path.join(process.cwd(), "public", "uploads", "documents");
-      await mkdir(uploadsDir, { recursive: true });
+      // Subir a S3
+      const { fileUrl, key } = await S3Service.uploadDirect(
+        buffer,
+        reportFile.name,
+        reportFile.type,
+        'documents'
+      );
+      console.log("[POST /api/admin/documents] Report file uploaded to S3:", key);
 
-      const timestamp = Date.now();
-      const ext = path.extname(reportFile.name) || ".jpg";
-      const filename = `report_${enrollmentId}_${timestamp}${ext}`;
-      const filepath = path.join(uploadsDir, filename);
-
-      await writeFile(filepath, buffer);
-      console.log("[POST /api/admin/documents] Report file saved to disk:", filepath);
-
-      const url = `/uploads/documents/${filename}`;
       const existingReport = await prisma.document.findFirst({ 
         where: { enrollmentId, type: DocumentType.REPORT } 
       });
@@ -165,14 +158,19 @@ export async function POST(request: NextRequest) {
       const document = existingReport
         ? await prisma.document.update({
             where: { id: existingReport.id },
-            data: { filename: reportFile.name, url, fileSize: reportFile.size, updatedAt: new Date() },
+            data: { 
+              filename: reportFile.name, 
+              url: fileUrl, 
+              fileSize: reportFile.size, 
+              updatedAt: new Date() 
+            },
           })
         : await prisma.document.create({
             data: {
               enrollmentId,
               type: DocumentType.REPORT,
               filename: reportFile.name,
-              url,
+              url: fileUrl,
               fileSize: reportFile.size,
             },
           });
@@ -184,7 +182,7 @@ export async function POST(request: NextRequest) {
     console.log("[POST /api/admin/documents] Upload complete. Documents:", uploadedDocuments.length);
 
     return NextResponse.json(
-      { message: "Documentos subidos exitosamente", documents: uploadedDocuments },
+      { message: "Documentos subidos exitosamente a S3", documents: uploadedDocuments },
       { status: 201 }
     );
   } catch (error) {
@@ -236,6 +234,30 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "documentId es requerido" }, { status: 400 });
     }
 
+    // Obtener el documento para extraer la key de S3
+    const document = await prisma.document.findUnique({
+      where: { id: documentId },
+    });
+
+    if (!document) {
+      return NextResponse.json({ error: "Documento no encontrado" }, { status: 404 });
+    }
+
+    // Eliminar de S3 si tiene URL de S3
+    if (document.url && document.url.includes('s3.amazonaws.com')) {
+      try {
+        const key = S3Service.extractKeyFromUrl(document.url);
+        if (key) {
+          await S3Service.deleteFile(key);
+          console.log('[DELETE /api/admin/documents] Archivo eliminado de S3:', key);
+        }
+      } catch (error) {
+        console.error('[DELETE /api/admin/documents] Error eliminando de S3:', error);
+        // Continuar aunque falle el borrado de S3
+      }
+    }
+
+    // Eliminar de la BD
     await prisma.document.delete({
       where: { id: documentId },
     });
