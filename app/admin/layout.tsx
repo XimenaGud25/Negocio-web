@@ -26,26 +26,6 @@ export default function AdminLayout({
           >
             Inicio
           </Link>
-
-          <Link
-            href="/admin/usuarios"
-            className="block px-4 py-2 rounded hover:bg-gray-800"
-          >
-            Usuarios
-          </Link>
-          <Link
-            href="/admin/usuario/crear"
-            className="block px-4 py-2 rounded hover:bg-gray-800"
-          >
-            Crear usuario
-          </Link>
-
-          <Link
-            href="/admin/planes"
-            className="block px-4 py-2 rounded hover:bg-gray-800"
-          >
-            Planes
-          </Link>
         </nav>
 
         {/* FOOTER SIDEBAR */}

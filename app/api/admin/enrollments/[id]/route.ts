@@ -37,9 +37,17 @@ export async function PATCH(
       return NextResponse.json({ error: "Plan no encontrado" }, { status: 404 });
     }
 
-    // Recalcular endDate basado en startDate + durationDays
+    // Recalcular endDate basado en startDate + duración del plan.
     const start = new Date(enrollment.startDate);
-    const newEnd = addDays(start, plan.durationDays - 1);
+
+    // `durationDays` puede ser null en el schema; usar `durationWeeksMin` como fallback
+    const days = plan.durationDays ?? (plan.durationWeeksMin ? plan.durationWeeksMin * 7 : null);
+
+    if (days === null || days === undefined) {
+      return NextResponse.json({ error: "El plan no tiene duración definida" }, { status: 400 });
+    }
+
+    const newEnd = addDays(start, days - 1);
 
     const now = new Date();
     const diffMs = newEnd.getTime() - now.getTime();

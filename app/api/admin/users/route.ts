@@ -81,21 +81,26 @@ export async function POST(request: NextRequest) {
     let enrollmentId = null;
     if (planId) {
       const plan = await prisma.plan.findUnique({ where: { id: planId } });
-      if (plan) {
-        const start = startDate ? new Date(startDate) : new Date();
-        const end = new Date(start);
-        end.setDate(end.getDate() + plan.durationDays);
-        const enrollment = await prisma.enrollment.create({
-          data: {
-            userId: user.id,
-            planId: plan.id,
-            startDate: start,
-            endDate: end,
-            status: "ACTIVE",
-          },
-        });
-        enrollmentId = enrollment.id;
-      }
+        if (plan) {
+          const start = startDate ? new Date(startDate) : new Date();
+          const days = plan.durationDays ?? (plan.durationWeeksMin ? plan.durationWeeksMin * 7 : null);
+          if (days === null || days === undefined) {
+            console.warn(`Plan ${plan.id} no tiene duración definida, se omitirá la creación del enrollment.`);
+          } else {
+            const end = new Date(start);
+            end.setDate(end.getDate() + days);
+            const enrollment = await prisma.enrollment.create({
+              data: {
+                userId: user.id,
+                planId: plan.id,
+                startDate: start,
+                endDate: end,
+                status: "ACTIVE",
+              },
+            });
+            enrollmentId = enrollment.id;
+          }
+        }
     }
     return NextResponse.json({ message: "Usuario creado exitosamente", userId: user.id, enrollmentId }, { status: 201 });
   } catch (error) {

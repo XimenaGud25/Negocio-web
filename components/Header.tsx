@@ -22,7 +22,7 @@ export default function Header() {
   // Determinar la URL del dashboard según el rol
   const getDashboardUrl = () => {
     if (session?.user?.role === "ADMIN") {
-      return "/dashboard/admin";
+      return "/admin";
     }
     return "/dashboard/client";
   };
