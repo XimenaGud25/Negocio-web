@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import { ImageService } from '@/lib/image-service';
 
 interface ExerciseImageProps {
@@ -60,20 +59,32 @@ export function ExerciseImage({ exercise, className = '', priority = false }: Ex
     loadImage();
   }, [exercise]);
 
+  // Si es placeholder, usar img simple
+  if (imageUrl === '/placeholder-exercise.jpg' || !imageUrl) {
+    return (
+      <div className={`relative overflow-hidden rounded-lg bg-gray-200 flex items-center justify-center ${className}`}>
+        <img 
+          src="/placeholder-exercise.jpg" 
+          alt="Exercise placeholder"
+          className="w-full h-full object-cover"
+        />
+      </div>
+    );
+  }
+
   return (
     <div className={`relative overflow-hidden rounded-lg ${className}`}>
       {loading && (
-        <div className="absolute inset-0 bg-gray-200 animate-pulse flex items-center justify-center">
+        <div className="absolute inset-0 bg-gray-200 animate-pulse flex items-center justify-center z-10">
           <div className="text-gray-500 text-sm">Cargando...</div>
         </div>
       )}
       
-      <Image
+      {/* Usar img simple para URLs pre-firmadas de S3 */}
+      <img
         src={imageUrl}
-        alt={exercise.name}
-        fill
-        priority={priority}
-        className={`object-cover transition-opacity duration-200 ${loading ? 'opacity-0' : 'opacity-100'}`}
+        alt={exercise.name || "Exercise Image"}
+        className={`w-full h-full object-cover transition-opacity duration-200 ${loading ? 'opacity-0' : 'opacity-100'}`}
         onLoad={() => setLoading(false)}
         onError={() => {
           setError('Error al cargar imagen');
@@ -83,7 +94,7 @@ export function ExerciseImage({ exercise, className = '', priority = false }: Ex
       />
       
       {error && (
-        <div className="absolute bottom-0 left-0 right-0 bg-red-500 bg-opacity-75 text-white text-xs p-1 text-center">
+        <div className="absolute bottom-0 left-0 right-0 bg-red-500 bg-opacity-75 text-white text-xs p-1 text-center z-20">
           {error}
         </div>
       )}
@@ -140,12 +151,11 @@ export function ExerciseImageGallery({ exercise, className = '' }: ExerciseImage
   return (
     <div className={`grid grid-cols-2 gap-2 ${className}`}>
       {imageUrls.map((url, index) => (
-        <div key={index} className="relative aspect-square rounded-lg overflow-hidden">
-          <Image
+        <div key={index} className="relative aspect-square rounded-lg overflow-hidden bg-gray-200">
+          <img
             src={url}
             alt={`${exercise.name} - Imagen ${index + 1}`}
-            fill
-            className="object-cover"
+            className="w-full h-full object-cover"
           />
         </div>
       ))}
