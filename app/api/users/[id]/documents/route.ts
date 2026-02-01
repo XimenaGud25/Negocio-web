@@ -21,10 +21,21 @@ export async function GET(
       return NextResponse.json({ error: "Acceso denegado" }, { status: 403 });
     }
 
-    // Obtener documentos del usuario
+    // Obtener enrollments del usuario para buscar documentos asociados
+    const userEnrollments = await prisma.enrollment.findMany({
+      where: { userId: id },
+      select: { id: true },
+    });
+
+    const enrollmentIds = userEnrollments.map(e => e.id);
+
+    // Obtener documentos del usuario (por userId O por enrollmentId)
     const documents = await prisma.document.findMany({
       where: { 
-        userId: id,
+        OR: [
+          { userId: id },
+          { enrollmentId: { in: enrollmentIds } },
+        ],
         isActive: true,
       },
       orderBy: { createdAt: "desc" },

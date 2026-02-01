@@ -45,38 +45,64 @@ export function ClientDocumentsContent({ userId }: ClientDocumentsContentProps) 
   const [viewerDoc, setViewerDoc] = useState<{ url: string; type?: string; filename?: string } | null>(null);
 
   const fetchDocuments = async () => {
+    console.log(`[ClientDocuments] fetchDocuments start userId=${userId}`);
     try {
       const response = await fetch(`/api/users/${userId}/documents`);
+      console.log('[ClientDocuments] fetchDocuments status', response.status);
+      const text = await response.text();
+      let parsed: any = null;
+      try {
+        parsed = JSON.parse(text);
+      } catch (e) {
+        // non-json response
+      }
+      console.log('[ClientDocuments] fetchDocuments body', parsed ?? text);
+
       if (response.ok) {
-        const data = await response.json();
-        setDocuments(data.documents || []);
+        setDocuments((parsed && parsed.documents) || []);
       } else {
-        console.error("Failed to fetch documents");
+        console.error("Failed to fetch documents", parsed ?? text);
+        if (parsed?.error) setError(parsed.error);
       }
     } catch (error) {
       console.error("Error fetching documents:", error);
+      setError(String(error));
     }
   };
 
   const fetchVideos = async () => {
+    console.log(`[ClientDocuments] fetchVideos start userId=${userId}`);
     try {
       const response = await fetch(`/api/users/${userId}/videos`);
+      console.log('[ClientDocuments] fetchVideos status', response.status);
+      const text = await response.text();
+      let parsed: any = null;
+      try {
+        parsed = JSON.parse(text);
+      } catch (e) {
+        // non-json
+      }
+      console.log('[ClientDocuments] fetchVideos body', parsed ?? text);
+
       if (response.ok) {
-        const data = await response.json();
-        setVideos(data.videos || []);
+        setVideos((parsed && parsed.videos) || []);
       } else {
-        console.error("Failed to fetch videos");
+        console.error("Failed to fetch videos", parsed ?? text);
+        if (parsed?.error) setError(parsed.error);
       }
     } catch (error) {
       console.error("Error fetching videos:", error);
+      setError(String(error));
     }
   };
 
   const handleVideoUploaded = () => {
+    console.log('[ClientDocuments] handleVideoUploaded - refreshing videos');
     fetchVideos();
   };
 
   const handleVideoDeleted = () => {
+    console.log('[ClientDocuments] handleVideoDeleted - refreshing videos');
     fetchVideos();
   };
 
